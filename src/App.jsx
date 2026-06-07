@@ -9,10 +9,12 @@ import {
 } from './lib/firebaseWorkoutStore.js';
 import {
   auth,
+  browserLocalPersistence,
   getRedirectResult,
   googleProvider,
   isFirebaseEnabled,
   onAuthStateChanged,
+  setPersistence,
   signInWithPopup,
   signInWithRedirect,
   signOut as firebaseSignOut,
@@ -124,6 +126,30 @@ function shouldUseRedirectSignIn() {
   return Boolean(isMobile || isSmallTouchScreen);
 }
 
+function getAuthErrorCode(error) {
+  return typeof error?.code === 'string' ? error.code : 'unknown';
+}
+
+function isRestrictedUserAgentError(error) {
+  const errorText = `${error?.code || ''} ${error?.message || ''}`.toLowerCase();
+  return (
+    errorText.includes('disallowed_useragent') ||
+    errorText.includes('operation-not-supported-in-this-environment') ||
+    errorText.includes('web-storage-unsupported')
+  );
+}
+
+function getAuthFailureStatus(error) {
+  if (isRestrictedUserAgentError(error)) {
+    return '현재 브라우저에서는 Google 로그인이 제한될 수 있습니다. Chrome 또는 Safari에서 열어주세요.';
+  }
+  return `Google sign-in failed (${getAuthErrorCode(error)})`;
+}
+
+function logAuthError(context, error) {
+  console.warn(`${context}: ${getAuthErrorCode(error)}`);
+}
+
 function App() {
   const [activeTab, setActiveTab] = useState('today');
   const [profile, setProfile] = useState(loadProfile);
@@ -155,6 +181,39 @@ function App() {
   const useFirestore = Boolean(isFirebaseEnabled && currentUser && firestoreAvailable);
   const plannedSeconds = Math.max(0, Number(profile.availableMinutes || 0) * 60);
   const elapsedSeconds = Math.max(0, plannedSeconds - remainingSeconds);
+
+  async function prepareAuthPersistence() {
+    if (!auth) return;
+    await setPersistence(auth, browserLocalPersistence);
+  }
+
+  async function loadFirebaseUserData(user) {
+    setCurrentUser(user);
+    setFirestoreAvailable(true);
+    setAuthStatus(`Logged in as ${user.email || user.displayName || 'Firebase user'}`);
+
+    try {
+      const [remoteProfile, remoteHistory] = await Promise.all([
+        loadUserProfileFromFirestore(user.uid),
+        loadWorkoutLogsFromFirestore(user.uid),
+      ]);
+      const nextProfile = remoteProfile || loadProfile();
+      const nextHistory = remoteHistory || [];
+      setProfile(nextProfile);
+      setHistory(nextHistory);
+      setRecommendation(generateWorkoutRecommendation({ ...nextProfile, workoutHistory: nextHistory, exerciseLibrary }));
+    } catch (error) {
+      console.warn('Failed to load Firebase user data', error);
+      setFirestoreAvailable(false);
+      const localProfile = loadProfile();
+      const localHistory = loadWorkoutHistory();
+      setProfile(localProfile);
+      setHistory(localHistory);
+      setRecommendation(generateWorkoutRecommendation({ ...localProfile, workoutHistory: localHistory, exerciseLibrary }));
+      setAuthStatus('Firebase load failed - using local data');
+    }
+  }
+
   const cautionText = profile.injuries.length
     ? profile.injuries.map((injury) => labels.injury[injury] || injury).join(', ')
     : '없음';
@@ -189,52 +248,39 @@ function App() {
     }
 
     return onAuthStateChanged(auth, async (user) => {
-      setCurrentUser(user);
-
       if (!user) {
+        setCurrentUser(null);
         setFirestoreAvailable(true);
         setAuthStatus('Firebase Ready');
         return;
       }
 
-      setFirestoreAvailable(true);
-      setAuthStatus(`Logged in as ${user.email || user.displayName || 'Firebase user'}`);
-
-      try {
-        const [remoteProfile, remoteHistory] = await Promise.all([
-          loadUserProfileFromFirestore(user.uid),
-          loadWorkoutLogsFromFirestore(user.uid),
-        ]);
-        const nextProfile = remoteProfile || loadProfile();
-        const nextHistory = remoteHistory || [];
-        setProfile(nextProfile);
-        setHistory(nextHistory);
-        setRecommendation(
-          generateWorkoutRecommendation({ ...nextProfile, workoutHistory: nextHistory, exerciseLibrary })
-        );
-      } catch (error) {
-        console.warn('Failed to load Firebase user data', error);
-        setFirestoreAvailable(false);
-        const localProfile = loadProfile();
-        const localHistory = loadWorkoutHistory();
-        setProfile(localProfile);
-        setHistory(localHistory);
-        setRecommendation(
-          generateWorkoutRecommendation({ ...localProfile, workoutHistory: localHistory, exerciseLibrary })
-        );
-        setAuthStatus('Firebase load failed - using local data');
-      }
+      await loadFirebaseUserData(user);
     });
   }, []);
 
   useEffect(() => {
     if (!isFirebaseEnabled || !auth) return undefined;
 
-    getRedirectResult(auth).catch((error) => {
-      console.warn('Google redirect sign-in failed', error);
-      setAuthStatus('Google sign-in failed');
-    });
-    return undefined;
+    let isActive = true;
+
+    async function resolveRedirectSignIn() {
+      try {
+        await prepareAuthPersistence();
+        const result = await getRedirectResult(auth);
+        if (!isActive || !result?.user) return;
+        await loadFirebaseUserData(result.user);
+      } catch (error) {
+        if (!isActive) return;
+        logAuthError('Google redirect sign-in failed', error);
+        setAuthStatus(getAuthFailureStatus(error));
+      }
+    }
+
+    resolveRedirectSignIn();
+    return () => {
+      isActive = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -284,6 +330,8 @@ function App() {
     }
 
     try {
+      await prepareAuthPersistence();
+
       if (shouldUseRedirectSignIn()) {
         setAuthStatus('Redirecting to Google sign-in');
         await signInWithRedirect(auth, googleProvider);
@@ -292,8 +340,19 @@ function App() {
 
       await signInWithPopup(auth, googleProvider);
     } catch (error) {
-      console.warn('Google sign-in failed', error);
-      setAuthStatus('Google sign-in failed');
+      logAuthError('Google sign-in failed', error);
+      if (isRestrictedUserAgentError(error)) {
+        setAuthStatus(getAuthFailureStatus(error));
+        return;
+      }
+
+      try {
+        setAuthStatus('Redirecting to Google sign-in');
+        await signInWithRedirect(auth, googleProvider);
+      } catch (redirectError) {
+        logAuthError('Google redirect fallback failed', redirectError);
+        setAuthStatus(getAuthFailureStatus(redirectError));
+      }
     }
   }
 

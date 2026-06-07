@@ -1,9 +1,11 @@
 import { initializeApp } from 'firebase/app';
 import {
+  browserLocalPersistence,
   getAuth,
   GoogleAuthProvider,
   getRedirectResult,
   onAuthStateChanged,
+  setPersistence,
   signInWithPopup,
   signInWithRedirect,
   signOut,
@@ -26,4 +28,13 @@ export const auth = firebaseApp ? getAuth(firebaseApp) : null;
 export const db = firebaseApp ? getFirestore(firebaseApp) : null;
 export const googleProvider = firebaseApp ? new GoogleAuthProvider() : null;
 export const isFirebaseEnabled = hasFirebaseConfig;
-export { GoogleAuthProvider, getRedirectResult, onAuthStateChanged, signInWithPopup, signInWithRedirect, signOut };
+export {
+  GoogleAuthProvider,
+  browserLocalPersistence,
+  getRedirectResult,
+  onAuthStateChanged,
+  setPersistence,
+  signInWithPopup,
+  signInWithRedirect,
+  signOut,
+};
