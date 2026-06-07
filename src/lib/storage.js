@@ -18,6 +18,12 @@ export function saveWorkoutLog(log) {
   return nextHistory;
 }
 
+export function saveWorkoutHistory(history) {
+  const nextHistory = history.slice(0, 100);
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(nextHistory));
+  return nextHistory;
+}
+
 export function deleteWorkoutLog(logId) {
   const history = loadWorkoutHistory();
   const nextHistory = history.filter((log) => log.id !== logId);

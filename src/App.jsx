@@ -20,7 +20,13 @@ import {
   generateWorkoutRecommendation,
   getMuscleIntensity,
 } from './lib/recommendationEngine.js';
-import { deleteWorkoutLog, loadProfile, loadWorkoutHistory, saveProfile, saveWorkoutLog } from './lib/storage.js';
+import {
+  deleteWorkoutLog,
+  loadProfile,
+  loadWorkoutHistory,
+  saveProfile,
+  saveWorkoutHistory,
+} from './lib/storage.js';
 
 const labels = {
   splitType: {
@@ -383,21 +389,17 @@ function App() {
       createdAt: new Date().toISOString(),
     };
     try {
-      let nextHistory;
+      const nextHistory = saveWorkoutHistory([log, ...history.filter((item) => item.id !== log.id)]);
       let savedRemotely = false;
       if (useFirestore) {
         try {
-          const savedLog = await saveWorkoutLogToFirestore(currentUser.uid, log);
-          nextHistory = [savedLog, ...history.filter((item) => item.id !== savedLog.id)].slice(0, 100);
+          await saveWorkoutLogToFirestore(currentUser.uid, log);
           savedRemotely = true;
         } catch (error) {
-          console.warn('Failed to save workout to Firestore; saving locally instead', error);
+          console.warn('Failed to sync workout to Firestore; local save is kept', error);
           setFirestoreAvailable(false);
-          nextHistory = saveWorkoutLog(log);
           setAuthStatus('Firestore save failed - saved locally');
         }
-      } else {
-        nextHistory = saveWorkoutLog(log);
       }
       setHistory(nextHistory);
       setSavedRoutineKey(currentRoutineKey);
@@ -419,19 +421,16 @@ function App() {
     if (!confirmed) return;
 
     try {
-      let nextHistory;
+      deleteWorkoutLog(logId);
+      const nextHistory = saveWorkoutHistory(history.filter((log) => log.id !== logId));
       if (useFirestore) {
         try {
           await deleteWorkoutLogFromFirestore(currentUser.uid, logId);
         } catch (error) {
-          console.warn('Failed to delete workout log from Firestore; deleting local copy instead', error);
+          console.warn('Failed to sync workout log deletion to Firestore; local delete is kept', error);
           setFirestoreAvailable(false);
           setAuthStatus('Firestore delete failed - updated locally');
         }
-        deleteWorkoutLog(logId);
-        nextHistory = history.filter((log) => log.id !== logId);
-      } else {
-        nextHistory = deleteWorkoutLog(logId);
       }
       setHistory(nextHistory);
       setHistoryStatus('운동 기록이 삭제되었습니다.');
