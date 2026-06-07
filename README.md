@@ -5,6 +5,12 @@ FitPilot is a fitness web app MVP that recommends today's workout routine from l
 Current production URL:
 
 ```text
+https://fitpilot-7d44e.firebaseapp.com
+```
+
+Secondary Firebase Hosting URL:
+
+```text
 https://fitpilot-7d44e.web.app
 ```
 
@@ -17,7 +23,15 @@ https://fitpilot-7d44e.web.app
 - Fallback: browser localStorage
 - AI/API: no external AI API is used
 
-The app still has a GitHub Pages workflow, but Firebase Hosting is the primary working deployment because Firebase Authentication already authorizes `fitpilot-7d44e.web.app`.
+The app still has a GitHub Pages workflow as a backup deployment path. Firebase Hosting is the official working deployment because Firebase Authentication is configured for the Firebase-authorized domains.
+
+For mobile use, prefer:
+
+```text
+https://fitpilot-7d44e.firebaseapp.com
+```
+
+If Google login fails on mobile Chrome, try Samsung Internet or clear Chrome site data for FitPilot/Firebase and retry.
 
 ## Core Features
 
@@ -150,7 +164,9 @@ npm run build
 npm run build:firebase
 ```
 
-Manual checks on `https://fitpilot-7d44e.web.app`:
+Manual checks on `https://fitpilot-7d44e.firebaseapp.com`:
+
+Backup Firebase Hosting URL: `https://fitpilot-7d44e.web.app`.
 
 1. App loads with `Firebase Ready`.
 2. Google login succeeds.

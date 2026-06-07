@@ -150,6 +150,15 @@ function logAuthError(context, error) {
   console.warn(`${context}: ${getAuthErrorCode(error)}`);
 }
 
+function isMobileBrowser() {
+  if (typeof window === 'undefined') return false;
+  const ua = navigator.userAgent || '';
+  const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(ua);
+  const isNarrowScreen = window.innerWidth <= 640;
+  const isSmallTouchScreen = window.matchMedia?.('(pointer: coarse)').matches && window.innerWidth <= 900;
+  return Boolean(isMobile || isNarrowScreen || isSmallTouchScreen);
+}
+
 function App() {
   const [activeTab, setActiveTab] = useState('today');
   const [profile, setProfile] = useState(loadProfile);
@@ -181,6 +190,7 @@ function App() {
   const useFirestore = Boolean(isFirebaseEnabled && currentUser && firestoreAvailable);
   const plannedSeconds = Math.max(0, Number(profile.availableMinutes || 0) * 60);
   const elapsedSeconds = Math.max(0, plannedSeconds - remainingSeconds);
+  const showMobileLoginHint = isFirebaseEnabled && !currentUser && isMobileBrowser();
 
   async function prepareAuthPersistence() {
     if (!auth) return;
@@ -552,6 +562,11 @@ function App() {
             <button className="auth-button" type="button" onClick={handleGoogleSignIn}>
               Google 로그인
             </button>
+          )}
+          {showMobileLoginHint && (
+            <p className="mobile-auth-hint">
+              모바일 Chrome에서 로그인이 안 되면 Samsung Internet 또는 firebaseapp.com 주소로 접속해 주세요.
+            </p>
           )}
         </div>
       </header>

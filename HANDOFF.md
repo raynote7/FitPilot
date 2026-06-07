@@ -1,12 +1,18 @@
 # FitPilot Handoff
 
-Date: 2026-06-07
+Date: 2026-06-08
 
 ## Current Status
 
 FitPilot is now running as a Firebase-backed web app.
 
 Primary production URL:
+
+```text
+https://fitpilot-7d44e.firebaseapp.com
+```
+
+Secondary Firebase Hosting URL:
 
 ```text
 https://fitpilot-7d44e.web.app
@@ -21,7 +27,13 @@ Current stack:
 - localStorage fallback
 - No external AI API
 
-GitHub Pages exists as a legacy/secondary deployment path, but Firebase Hosting is the current operating target because Google Auth works cleanly on the Firebase-authorized domain.
+GitHub Pages exists as a backup deployment path, but Firebase Hosting is the current operating target because Google Auth works cleanly on Firebase-authorized domains.
+
+Mobile recommendation:
+
+- Use `https://fitpilot-7d44e.firebaseapp.com` as the official mobile URL.
+- If mobile Chrome returns to `Firebase Ready` after Google login, try Samsung Internet.
+- If Chrome must be used, clear Chrome site data for FitPilot/Firebase and retry.
 
 ## Resolved Issues
 
@@ -42,6 +54,8 @@ Current confirmed state:
 - Workout save creates Firestore documents.
 - Workout delete removes Firestore documents.
 - localStorage fallback remains active.
+- Mobile Samsung Internet login works on `https://fitpilot-7d44e.firebaseapp.com`.
+- Mobile Chrome may have redirect auth storage/cookie/site-data issues on some devices.
 
 ## Important Files
 
@@ -126,7 +140,7 @@ npm run build:firebase
 
 Manual production checks:
 
-1. Open `https://fitpilot-7d44e.web.app`.
+1. Open `https://fitpilot-7d44e.firebaseapp.com`.
 2. Confirm `Firebase Ready`.
 3. Sign in with Google.
 4. Confirm logged-in state.
@@ -156,7 +170,9 @@ Firestore:
 Hosting:
 
 - Firebase Hosting site `fitpilot-7d44e` is connected.
-- Deployed app should resolve at `https://fitpilot-7d44e.web.app`.
+- Official app URL should resolve at `https://fitpilot-7d44e.firebaseapp.com`.
+- Backup Firebase Hosting URL should resolve at `https://fitpilot-7d44e.web.app`.
+- GitHub Pages remains a backup deployment address only.
 
 ## Next Work
 
