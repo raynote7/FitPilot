@@ -10,52 +10,52 @@ import { isFirebaseEnabled } from './firebase.js';
 
 const labels = {
   splitType: {
-    three_split: '3-day split',
-    ppl: 'Push / Pull / Legs',
-    two_split: 'Upper / Lower',
-    full_body: 'Full body',
+    three_split: '3분할',
+    ppl: 'PPL',
+    two_split: '상/하체',
+    full_body: '전신',
   },
   goal: {
-    fat_loss: 'Fat loss',
-    strength: 'Strength',
-    hypertrophy: 'Muscle growth',
-    general: 'General fitness',
+    fat_loss: '체지방',
+    strength: '근력',
+    hypertrophy: '근비대',
+    general: '체력',
   },
   focus: {
     push: 'Push',
     pull: 'Pull',
-    legs: 'Legs + Core',
+    legs: 'Legs',
     upper: 'Upper',
     lower: 'Lower',
     full_body: 'Full Body',
   },
   injury: {
-    knee: 'Knee',
-    shoulder: 'Shoulder',
-    back: 'Back',
+    knee: '무릎',
+    shoulder: '어깨',
+    back: '허리',
   },
   experience: {
-    beginner: 'Beginner',
-    intermediate: 'Intermediate',
-    advanced: 'Advanced',
+    beginner: '초급',
+    intermediate: '중급',
+    advanced: '고급',
   },
 };
 
 const muscleLabels = {
-  chest: 'Chest',
-  back: 'Back',
-  front_shoulder: 'Front shoulder',
-  side_shoulder: 'Side shoulder',
-  rear_shoulder: 'Rear shoulder',
-  biceps: 'Biceps',
-  triceps: 'Triceps',
-  abs: 'Abs',
-  quads: 'Quads',
-  hamstrings: 'Hamstrings',
-  glutes: 'Glutes',
-  calves: 'Calves',
-  lower_back: 'Lower back',
-  traps: 'Traps',
+  chest: '가슴',
+  back: '등/광배',
+  front_shoulder: '전면 어깨',
+  side_shoulder: '측면 어깨',
+  rear_shoulder: '후면 어깨',
+  biceps: '이두',
+  triceps: '삼두',
+  abs: '복부',
+  quads: '대퇴사두',
+  hamstrings: '햄스트링',
+  glutes: '둔근',
+  calves: '종아리',
+  lower_back: '허리',
+  traps: '승모',
 };
 
 function todayString() {
@@ -82,9 +82,13 @@ function App() {
   const [savedRoutineKey, setSavedRoutineKey] = useState('');
 
   const completionRate = calculateCompletionRate(recommendation.exercises);
+  const completedCount = recommendation.exercises.filter((exercise) => exercise.completed).length;
   const muscleIntensity = useMemo(() => getMuscleIntensity(recommendation.exercises), [recommendation.exercises]);
   const currentRoutineKey = routineKey(recommendation);
   const hasSavedCurrentRoutine = savedRoutineKey === currentRoutineKey;
+  const cautionText = profile.injuries.length
+    ? profile.injuries.map((injury) => labels.injury[injury] || injury).join(', ')
+    : '없음';
 
   function updateProfile(nextProfile) {
     setProfile(nextProfile);
@@ -127,7 +131,7 @@ function App() {
 
   function saveTodayWorkout() {
     if (hasSavedCurrentRoutine) {
-      setSaveStatus('This routine is already saved.');
+      setSaveStatus('이미 저장된 루틴입니다.');
       return;
     }
 
@@ -144,7 +148,7 @@ function App() {
     const nextHistory = saveWorkoutLog(log);
     setHistory(nextHistory);
     setSavedRoutineKey(currentRoutineKey);
-    setSaveStatus('Saved to this browser.');
+    setSaveStatus('저장되었습니다. 같은 루틴은 한 번 더 저장되지 않습니다.');
   }
 
   const filteredLibrary = exerciseLibrary.filter((exercise) => {
@@ -158,28 +162,21 @@ function App() {
 
   return (
     <div className="app-shell">
-      <header className="hero">
+      <header className="app-header">
         <div>
-          <p className="eyebrow">Local-first fitness MVP</p>
           <h1>FitPilot</h1>
-          <p className="hero-text">
-            Get a practical workout for today, check off each exercise, and keep your history on this device.
-          </p>
+          <p>기록 기반 오늘 운동 추천</p>
         </div>
-        <div className="status-card">
-          <span>Storage mode</span>
-          <strong>{isFirebaseEnabled ? 'Firebase ready' : 'Local only'}</strong>
-          <small>{isFirebaseEnabled ? 'Firebase config is available.' : 'The MVP works without a backend.'}</small>
-        </div>
+        <span className="mode-pill">{isFirebaseEnabled ? 'Firebase ready' : 'Local only'}</span>
       </header>
 
       <nav className="tabs" aria-label="FitPilot sections">
         {[
-          ['today', 'Today'],
-          ['generate', 'New Routine'],
-          ['body', 'Body Map'],
-          ['library', 'Exercise DB'],
-          ['history', 'History'],
+          ['today', '오늘'],
+          ['generate', '새 루틴'],
+          ['body', '신체'],
+          ['library', 'DB'],
+          ['history', '기록'],
         ].map(([key, label]) => (
           <button key={key} className={activeTab === key ? 'active' : ''} onClick={() => setActiveTab(key)}>
             {label}
@@ -188,149 +185,134 @@ function App() {
       </nav>
 
       {activeTab === 'today' && (
-        <main className="grid two-columns">
-          <section className="panel wide">
-            <div className="section-title-row">
+        <main className="dashboard-grid">
+          <section className="routine-panel">
+            <div className="routine-head">
               <div>
-                <p className="eyebrow">{todayString()}</p>
-                <h2>Today: {labels.focus[recommendation.focus] || recommendation.focus}</h2>
+                <h2>오늘의 루틴: {labels.focus[recommendation.focus] || recommendation.focus}</h2>
+                <p>{recommendation.recommendationReason}</p>
               </div>
-              <button className="primary" onClick={saveTodayWorkout}>
-                {hasSavedCurrentRoutine ? 'Saved' : 'Save workout'}
+              <button className="ghost-button desktop-only" onClick={() => setActiveTab('generate')}>
+                새 루틴
               </button>
             </div>
-            <p className="muted">{recommendation.recommendationReason}</p>
-            {saveStatus && <p className="success-message">{saveStatus}</p>}
 
-            <div className="summary-row">
-              <SummaryCard label="Estimated calories" value={`${recommendation.totalEstimatedCalories} kcal`} />
-              <SummaryCard label="Completion" value={`${completionRate}%`} />
-              <SummaryCard label="Exercises" value={String(recommendation.exercises.length)} />
+            <div className="metrics-row">
+              <MetricCard label="예상 칼로리" value={`${recommendation.totalEstimatedCalories}kcal`} />
+              <MetricCard label="완료율" value={`${completionRate}%`} />
+              <MetricCard label="주의 부위" value={cautionText} />
+            </div>
+
+            <div className="action-row">
+              <button className="primary-button" onClick={saveTodayWorkout}>
+                {hasSavedCurrentRoutine ? '저장됨' : '운동 저장'}
+              </button>
+              <button className="ghost-button" onClick={() => setActiveTab('generate')}>
+                새 루틴
+              </button>
+            </div>
+
+            {profile.injuries.length > 0 && (
+              <div className="notice warning">주의 부위: {cautionText} 선택됨. 충돌 운동은 가능한 경우 제외됩니다.</div>
+            )}
+            {saveStatus && <div className="notice success">{saveStatus}</div>}
+
+            <div className="checklist-title">
+              <h3>체크리스트</h3>
+              <span>
+                {completedCount}/{recommendation.exercises.length} 완료
+              </span>
             </div>
 
             <div className="exercise-list">
               {recommendation.exercises.map((exercise) => (
-                <article className={`exercise-card ${exercise.completed ? 'done' : ''}`} key={exercise.exerciseId}>
-                  <div className="exercise-main">
-                    <input
-                      type="checkbox"
-                      checked={exercise.completed}
-                      onChange={() => toggleExercise(exercise.exerciseId)}
-                      aria-label={`Mark ${exercise.name} complete`}
-                    />
-                    <div>
-                      <h3>{exercise.name}</h3>
-                      <p>
-                        {exercise.sets} sets x {exercise.reps} - {exercise.estimatedMinutes} min -{' '}
-                        {exercise.estimatedCalories} kcal
-                      </p>
-                      <p className="muted">
-                        Main muscles: {exercise.primaryMuscles.map((m) => muscleLabels[m] || m).join(', ')}
-                      </p>
-                      {exercise.reason && <p className="reason">{exercise.reason}</p>}
-                    </div>
-                  </div>
-                  <label className="weight-input">
-                    Weight
-                    <input
-                      value={exercise.weight || ''}
-                      onChange={(event) => updateWeight(exercise.exerciseId, event.target.value)}
-                      placeholder="kg"
-                    />
-                  </label>
-                </article>
+                <ExerciseCard
+                  key={exercise.exerciseId}
+                  exercise={exercise}
+                  onToggle={() => toggleExercise(exercise.exerciseId)}
+                  onWeightChange={(value) => updateWeight(exercise.exerciseId, value)}
+                />
               ))}
             </div>
           </section>
-          <BodyMapPanel muscleIntensity={muscleIntensity} />
+
+          <aside className="support-column">
+            <BodyMapPanel muscleIntensity={muscleIntensity} compact />
+            <section className="mini-panel">
+              <h3>오늘 조건</h3>
+              <div className="condition-list">
+                <span>{labels.splitType[profile.splitType]}</span>
+                <span>{profile.availableMinutes}분</span>
+                <span>{labels.goal[profile.goal]}</span>
+                <span>{labels.experience[profile.experienceLevel]}</span>
+              </div>
+            </section>
+          </aside>
         </main>
       )}
 
       {activeTab === 'generate' && (
-        <main className="grid two-columns">
-          <section className="panel">
-            <h2>New Routine</h2>
-            <p className="muted">Choose conditions, then generate a routine. Reset mode ignores workout history.</p>
-            <FormSelect
-              label="Split type"
-              value={profile.splitType}
-              onChange={(value) => updateProfile({ ...profile, splitType: value })}
-              options={labels.splitType}
-            />
-            <FormSelect
-              label="Available time"
-              value={String(profile.availableMinutes)}
-              onChange={(value) => updateProfile({ ...profile, availableMinutes: Number(value) })}
-              options={{ 30: '30 min', 45: '45 min', 60: '60 min', 90: '90 min' }}
-            />
-            <FormSelect
-              label="Goal"
-              value={profile.goal}
-              onChange={(value) => updateProfile({ ...profile, goal: value })}
-              options={labels.goal}
-            />
-            <FormSelect
-              label="Experience"
-              value={profile.experienceLevel}
-              onChange={(value) => updateProfile({ ...profile, experienceLevel: value })}
-              options={labels.experience}
-            />
-            <div className="form-block">
-              <label>Caution areas</label>
-              <div className="chip-row">
-                {Object.entries(labels.injury).map(([key, label]) => {
-                  const checked = profile.injuries.includes(key);
-                  return (
-                    <button
-                      key={key}
-                      className={checked ? 'chip active' : 'chip'}
-                      onClick={() =>
-                        updateProfile({
-                          ...profile,
-                          injuries: checked
-                            ? profile.injuries.filter((item) => item !== key)
-                            : [...profile.injuries, key],
-                        })
-                      }
-                      type="button"
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            <button className="primary full" onClick={() => generateRoutine()}>
-              Generate from history
-            </button>
-            <button className="secondary full" onClick={() => generateRoutine({ ignoreHistory: true })}>
-              Reset and ignore history
-            </button>
-          </section>
+        <main className="form-screen">
+          <section className="routine-panel">
+            <h2>새 루틴 만들기</h2>
+            <p className="screen-copy">
+              기록 기반 추천이 마음에 들지 않을 때 사용합니다. 아래 조건으로 오늘 루틴을 새로 시작합니다.
+            </p>
 
-          <section className="panel">
-            <h2>How it works</h2>
-            <ul className="plain-list">
-              <li>3-day and PPL routines rotate through Push, Pull, and Legs.</li>
-              <li>Upper / Lower routines rotate from the most recent saved focus.</li>
-              <li>Recent exercises are penalized to reduce repetition.</li>
-              <li>Caution areas strongly reduce risky exercises.</li>
-              <li>Workout time controls the number of exercises.</li>
-              <li>No paid AI API or backend is required.</li>
-            </ul>
+            <div className="reset-banner">
+              <strong>기록 무시 모드</strong>
+              <span>최근 운동 기록을 참고하지 않고 조건만으로 새 루틴을 만듭니다.</span>
+            </div>
+
+            <OptionGroup
+              title="운동 시간"
+              value={String(profile.availableMinutes)}
+              options={{ 30: '30분', 45: '45분', 60: '60분', 90: '90분' }}
+              onChange={(value) => updateProfile({ ...profile, availableMinutes: Number(value) })}
+            />
+            <OptionGroup
+              title="목표"
+              value={profile.goal}
+              options={labels.goal}
+              onChange={(value) => updateProfile({ ...profile, goal: value })}
+            />
+            <OptionGroup
+              title="주의 부위"
+              value={profile.injuries}
+              options={labels.injury}
+              multi
+              onChange={(value) => updateProfile({ ...profile, injuries: value })}
+            />
+            <OptionGroup
+              title="운동 수준"
+              value={profile.experienceLevel}
+              options={labels.experience}
+              onChange={(value) => updateProfile({ ...profile, experienceLevel: value })}
+            />
+            <OptionGroup
+              title="분할 방식"
+              value={profile.splitType}
+              options={labels.splitType}
+              onChange={(value) => updateProfile({ ...profile, splitType: value })}
+            />
+
+            <button className="primary-button full" onClick={() => generateRoutine({ ignoreHistory: true })}>
+              기록 무시하고 새 루틴 생성
+            </button>
+            <button className="ghost-button full" onClick={() => generateRoutine()}>
+              기록 기반 추천으로 돌아가기
+            </button>
           </section>
         </main>
       )}
 
       {activeTab === 'body' && (
-        <main className="grid two-columns">
+        <main className="dashboard-grid">
           <BodyMapPanel muscleIntensity={muscleIntensity} />
-          <section className="panel">
-            <h2>Muscle Focus</h2>
+          <section className="routine-panel">
+            <h2>오늘 자극 부위</h2>
             <div className="muscle-list">
-              {Object.entries(muscleIntensity).length === 0 && (
-                <p className="muted">No selected workout yet.</p>
-              )}
+              {Object.entries(muscleIntensity).length === 0 && <p className="muted">선택된 루틴이 없습니다.</p>}
               {Object.entries(muscleIntensity).map(([muscle, value]) => (
                 <div className="muscle-row" key={muscle}>
                   <span>{muscleLabels[muscle] || muscle}</span>
@@ -343,24 +325,27 @@ function App() {
       )}
 
       {activeTab === 'library' && (
-        <main className="panel">
-          <div className="section-title-row">
-            <h2>Exercise Library</h2>
+        <main className="routine-panel">
+          <div className="section-row">
+            <h2>운동 DB</h2>
             <input
               className="search"
               value={libraryQuery}
               onChange={(event) => setLibraryQuery(event.target.value)}
-              placeholder="Search name, category, or muscle"
+              placeholder="운동명, 부위, 카테고리 검색"
             />
           </div>
           <div className="library-grid">
             {filteredLibrary.map((exercise) => (
               <article className="library-card" key={exercise.id}>
                 <h3>{exercise.name}</h3>
-                <p className="tag">{exercise.category}</p>
-                <p>Main muscles: {exercise.primaryMuscles.map((m) => muscleLabels[m] || m).join(', ')}</p>
+                <div className="chip-row tight">
+                  <span className="tag">{exercise.category}</span>
+                  <span className="tag muted-tag">{exercise.equipment}</span>
+                </div>
+                <p>{exercise.primaryMuscles.map((m) => muscleLabels[m] || m).join(', ')}</p>
                 <p className="muted">
-                  {exercise.defaultSets} sets x {exercise.defaultReps} - {exercise.equipment}
+                  {exercise.defaultSets}세트 x {exercise.defaultReps} - {exercise.estimatedMinutes}분
                 </p>
                 <p>{exercise.description}</p>
               </article>
@@ -370,24 +355,18 @@ function App() {
       )}
 
       {activeTab === 'history' && (
-        <main className="panel">
-          <h2>Workout History</h2>
-          {history.length === 0 && (
-            <p className="muted">No saved workouts yet. Save today's workout to build local history.</p>
-          )}
+        <main className="routine-panel">
+          <h2>운동 기록</h2>
+          {history.length === 0 && <p className="muted">아직 저장된 운동 기록이 없습니다.</p>}
           <div className="history-list">
             {history.map((log) => (
               <article className="history-card" key={log.id}>
-                <div className="section-title-row">
-                  <div>
-                    <h3>
-                      {log.date} - {labels.focus[log.focus] || log.focus}
-                    </h3>
-                    <p className="muted">
-                      Completion {log.completionRate}% - Estimated {log.totalEstimatedCalories} kcal
-                    </p>
-                  </div>
-                </div>
+                <h3>
+                  {log.date} - {labels.focus[log.focus] || log.focus}
+                </h3>
+                <p className="muted">
+                  완료율 {log.completionRate}% - 예상 {log.totalEstimatedCalories}kcal
+                </p>
                 <p>{log.exercises.map((exercise) => exercise.name).join(', ')}</p>
               </article>
             ))}
@@ -398,37 +377,87 @@ function App() {
   );
 }
 
-function SummaryCard({ label, value }) {
+function MetricCard({ label, value }) {
   return (
-    <div className="summary-card">
+    <div className="metric-card">
       <span>{label}</span>
       <strong>{value}</strong>
     </div>
   );
 }
 
-function FormSelect({ label, value, onChange, options }) {
+function ExerciseCard({ exercise, onToggle, onWeightChange }) {
   return (
-    <label className="form-block">
-      <span>{label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)}>
-        {Object.entries(options).map(([key, text]) => (
-          <option value={key} key={key}>
-            {text}
-          </option>
-        ))}
-      </select>
-    </label>
+    <article className={`exercise-card ${exercise.completed ? 'done' : ''}`}>
+      <div className="exercise-content">
+        <input
+          type="checkbox"
+          checked={exercise.completed}
+          onChange={onToggle}
+          aria-label={`${exercise.name} 완료`}
+        />
+        <div>
+          <h3>{exercise.name}</h3>
+          <p>
+            {exercise.sets}세트 x {exercise.reps} - {exercise.estimatedMinutes}분 - {exercise.estimatedCalories}kcal
+          </p>
+          <div className="chip-row tight">
+            {exercise.primaryMuscles.slice(0, 2).map((muscle) => (
+              <span className="tag muted-tag" key={muscle}>
+                {muscleLabels[muscle] || muscle}
+              </span>
+            ))}
+            {exercise.reason && <span className="tag active-tag">추천 이유</span>}
+          </div>
+        </div>
+      </div>
+      <label className="weight-input">
+        중량
+        <input value={exercise.weight || ''} onChange={(event) => onWeightChange(event.target.value)} placeholder="kg" />
+      </label>
+    </article>
   );
 }
 
-function BodyMapPanel({ muscleIntensity }) {
+function OptionGroup({ title, value, options, onChange, multi = false }) {
+  function toggleOption(key) {
+    if (!multi) {
+      onChange(key);
+      return;
+    }
+    const current = Array.isArray(value) ? value : [];
+    onChange(current.includes(key) ? current.filter((item) => item !== key) : [...current, key]);
+  }
+
+  return (
+    <section className="option-card">
+      <h3>{title}</h3>
+      <div className="chip-row">
+        {Object.entries(options).map(([key, label]) => {
+          const selected = multi ? value.includes(key) : value === key;
+          return (
+            <button
+              className={selected ? 'option-chip selected' : 'option-chip'}
+              key={key}
+              onClick={() => toggleOption(key)}
+              type="button"
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function BodyMapPanel({ muscleIntensity, compact = false }) {
   const active = (muscle) => (muscleIntensity[muscle] ? 'body-part active' : 'body-part');
 
   return (
-    <section className="panel body-panel">
-      <h2>Body Map</h2>
-      <p className="muted">Highlighted areas show today's primary and secondary muscle focus.</p>
+    <section className={compact ? 'mini-panel body-panel' : 'routine-panel body-panel'}>
+      <h2>신체 부위 맵</h2>
+      <p className="muted">오늘 루틴의 주요 자극 부위를 표시합니다.</p>
       <div className="body-map-wrap">
         <svg className="body-map" viewBox="0 0 360 360" role="img" aria-label="front and back body map">
           <text x="70" y="24">Front</text>

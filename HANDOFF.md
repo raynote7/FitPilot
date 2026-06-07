@@ -95,6 +95,56 @@ Browser automation note:
 - Playwright is not installed in this project, so a full automated browser interaction was not run.
 - Manual browser validation is still recommended before deployment.
 
+## Completed UX Pass 2
+
+Date: 2026-06-07
+
+Goal:
+
+- Reflect the UX Agent Figma direction in the actual React UI.
+- Make today's routine the primary app experience.
+- Keep new routine creation as a secondary reset flow that can ignore history.
+
+Changed files:
+
+- `src/App.jsx`
+- `src/styles.css`
+
+Work completed:
+
+- Reworked the app shell into a compact Figma-style header with `Local only` status.
+- Made the Today screen the main dashboard.
+- Added Figma-style summary cards for calories, completion, and caution areas.
+- Added primary and secondary actions near the top of the Today screen.
+- Reworked workout cards into denser checklist cards with selected/done styling.
+- Added a visible completion badge like `1/6 complete`.
+- Added notice blocks for caution areas and saved-state feedback.
+- Reworked New Routine into a reset flow with a visible ignore-history banner.
+- Replaced select inputs with pill-style option controls for time, goal, caution areas, experience, and split type.
+- Kept Body Map as supporting information instead of a dominant first-screen panel.
+- Preserved localStorage, Firebase-placeholder, and no-external-AI constraints.
+
+Validation completed:
+
+```bash
+npm run build
+```
+
+Result:
+
+- Passed.
+
+Local checks:
+
+- `http://127.0.0.1:5173/FitPilot/` returned HTTP 200.
+- Recommendation smoke test still rotated first `push` routine to second `pull` routine with saved-history simulation.
+
+Remaining UX validation:
+
+- User should visually inspect the in-app browser at mobile-ish width and desktop width.
+- Confirm Korean text renders correctly on GitHub Pages after deployment.
+- Confirm Today, New Routine, Body Map, Exercise DB, and History tabs are comfortable enough before the next push.
+
 ## Previous Critical Findings
 
 ### 1. `src/App.jsx` is currently broken
@@ -148,7 +198,7 @@ No full rewrite is recommended.
 
 ### 1. Frontend Agent
 
-Primary goal: improve the app experience now that the baseline compiles.
+Primary goal: polish the Figma-inspired UI after visual review.
 
 Files:
 
@@ -157,8 +207,8 @@ Files:
 
 Tasks:
 
-- Improve information density and mobile ergonomics.
-- Consider Korean localization only after confirming UTF-8 handling is safe end-to-end.
+- Tune spacing, card density, and copy based on visual review.
+- Confirm Korean localization renders correctly end-to-end.
 - Keep current component structure unless a small split clearly improves readability.
 - Keep the app local-first and do not introduce routing, UI kits, backend calls, or external AI APIs.
 - Make the first screen feel like a workout checklist app, not a landing page.
