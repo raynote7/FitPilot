@@ -15,6 +15,34 @@ Use this guide before new features, non-trivial UI changes, recommendation logic
 - Prevent scope creep into backend sync, paid AI APIs, unrelated frameworks, or full product rebuilds.
 - Define acceptance criteria and a practical validation method before development starts.
 - Present the intended files to change and the work order before implementation.
+- Own final requirement consolidation before development or validation handoff.
+- Own `HANDOFF.md` updates when a feature direction is agreed, especially after UX, development, validation, or deployment discussions.
+- Keep `HANDOFF.md` as the source of truth for Development Agent and Validation Agent execution.
+- When user discussion changes scope, update the handoff before implementation continues.
+
+## Handoff Ownership
+
+Planning Agent is responsible for final specification and handoff quality.
+
+Before Development Agent starts non-trivial work, Planning Agent should ensure `HANDOFF.md` includes:
+
+1. Confirmed product decision.
+2. Target user and problem.
+3. Current behavior.
+4. Proposed MVP behavior.
+5. In-scope items.
+6. Out-of-scope items.
+7. Files likely to change.
+8. Implementation order.
+9. Edge cases and risks.
+10. Validation plan.
+11. Completion criteria.
+
+If UX Agent, Recommendation Agent, Validation Agent, or Deployment Agent identifies a new requirement, Planning Agent should consolidate it into a clear final requirement before coding resumes.
+
+Development Agent should execute from `HANDOFF.md`.
+
+Validation Agent should verify against `HANDOFF.md`.
 
 ## MVP Scope Rules
 

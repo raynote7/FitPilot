@@ -1,11 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { exerciseLibrary } from './data/exerciseLibrary.js';
 import {
   calculateCompletionRate,
   generateWorkoutRecommendation,
   getMuscleIntensity,
 } from './lib/recommendationEngine.js';
-import { loadProfile, loadWorkoutHistory, saveProfile, saveWorkoutLog } from './lib/storage.js';
+import { deleteWorkoutLog, loadProfile, loadWorkoutHistory, saveProfile, saveWorkoutLog } from './lib/storage.js';
 import { isFirebaseEnabled } from './firebase.js';
 
 const labels = {
@@ -70,26 +70,111 @@ function createId() {
   return crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+function formatTimer(totalSeconds) {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+function formatDisplayDate(dateText) {
+  return new Intl.DateTimeFormat('ko-KR', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    weekday: 'long',
+  }).format(new Date(`${dateText}T00:00:00`));
+}
+
+function localDateFromIso(isoText) {
+  if (!isoText) return todayString();
+  const date = new Date(isoText);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function App() {
   const [activeTab, setActiveTab] = useState('today');
   const [profile, setProfile] = useState(loadProfile);
+  const initialRemainingSeconds = Math.max(0, Number(profile.availableMinutes || 0) * 60);
   const [history, setHistory] = useState(loadWorkoutHistory);
   const [recommendation, setRecommendation] = useState(() =>
     generateWorkoutRecommendation({ ...loadProfile(), workoutHistory: loadWorkoutHistory(), exerciseLibrary })
   );
   const [libraryQuery, setLibraryQuery] = useState('');
   const [saveStatus, setSaveStatus] = useState('');
+  const [historyStatus, setHistoryStatus] = useState('');
   const [savedRoutineKey, setSavedRoutineKey] = useState('');
   const [openReasonId, setOpenReasonId] = useState('');
+  const [sessionStatus, setSessionStatus] = useState('idle');
+  const [remainingSeconds, setRemainingSeconds] = useState(initialRemainingSeconds);
+  const [sessionStartedAt, setSessionStartedAt] = useState('');
+  const [sessionEndedAt, setSessionEndedAt] = useState('');
+  const [routineDate, setRoutineDate] = useState(todayString());
+  const [dateNotice, setDateNotice] = useState('');
 
   const completionRate = calculateCompletionRate(recommendation.exercises);
   const completedCount = recommendation.exercises.filter((exercise) => exercise.completed).length;
   const muscleIntensity = useMemo(() => getMuscleIntensity(recommendation.exercises), [recommendation.exercises]);
   const currentRoutineKey = routineKey(recommendation);
   const hasSavedCurrentRoutine = savedRoutineKey === currentRoutineKey;
+  const plannedSeconds = Math.max(0, Number(profile.availableMinutes || 0) * 60);
+  const elapsedSeconds = Math.max(0, plannedSeconds - remainingSeconds);
   const cautionText = profile.injuries.length
     ? profile.injuries.map((injury) => labels.injury[injury] || injury).join(', ')
     : '없음';
+
+  useEffect(() => {
+    if (sessionStatus !== 'running') return undefined;
+
+    const timerId = window.setInterval(() => {
+      setRemainingSeconds((current) => {
+        if (current <= 1) {
+          setSessionStatus('ended');
+          setSessionEndedAt((value) => value || new Date().toISOString());
+          return 0;
+        }
+        return current - 1;
+      });
+    }, 1000);
+
+    return () => window.clearInterval(timerId);
+  }, [sessionStatus]);
+
+  useEffect(() => {
+    if (sessionStatus === 'idle') {
+      setRemainingSeconds(plannedSeconds);
+    }
+  }, [plannedSeconds, sessionStatus]);
+
+  useEffect(() => {
+    const checkRoutineDate = () => {
+      const today = todayString();
+      if (routineDate === today) return;
+
+      const canRefresh = sessionStatus === 'idle' || (sessionStatus === 'ended' && hasSavedCurrentRoutine);
+      if (canRefresh) {
+        const next = generateWorkoutRecommendation({ ...profile, workoutHistory: history, exerciseLibrary });
+        setRecommendation(next);
+        setRoutineDate(today);
+        setSavedRoutineKey('');
+        setSaveStatus('');
+        setDateNotice('');
+        setSessionStatus('idle');
+        setRemainingSeconds(plannedSeconds);
+        setSessionStartedAt('');
+        setSessionEndedAt('');
+        return;
+      }
+
+      setDateNotice('날짜가 바뀌었습니다. 진행 중인 운동을 종료하거나 저장한 뒤 오늘 루틴을 새로 불러올 수 있습니다.');
+    };
+
+    checkRoutineDate();
+    const dateCheckId = window.setInterval(checkRoutineDate, 60000);
+    return () => window.clearInterval(dateCheckId);
+  }, [hasSavedCurrentRoutine, history, plannedSeconds, profile, routineDate, sessionStatus]);
 
   function updateProfile(nextProfile) {
     setProfile(nextProfile);
@@ -103,9 +188,40 @@ function App() {
       exerciseLibrary,
     });
     setRecommendation(next);
+    setRoutineDate(todayString());
     setSavedRoutineKey('');
     setSaveStatus('');
+    setDateNotice('');
+    resetWorkoutSession();
     setActiveTab('today');
+  }
+
+  function resetWorkoutSession() {
+    setSessionStatus('idle');
+    setRemainingSeconds(plannedSeconds);
+    setSessionStartedAt('');
+    setSessionEndedAt('');
+  }
+
+  function startWorkout() {
+    setSessionStatus('running');
+    setSessionStartedAt((value) => value || new Date().toISOString());
+    setSessionEndedAt('');
+    setSaveStatus('');
+    setDateNotice('');
+  }
+
+  function pauseWorkout() {
+    setSessionStatus('paused');
+  }
+
+  function resumeWorkout() {
+    setSessionStatus('running');
+  }
+
+  function endWorkout() {
+    setSessionStatus('ended');
+    setSessionEndedAt(new Date().toISOString());
   }
 
   function toggleExercise(exerciseId) {
@@ -138,18 +254,38 @@ function App() {
 
     const log = {
       id: createId(),
-      date: todayString(),
+      date: sessionStartedAt ? localDateFromIso(sessionStartedAt) : routineDate,
+      routineDate,
       focus: recommendation.focus,
       exercises: recommendation.exercises,
       totalEstimatedCalories: recommendation.totalEstimatedCalories,
       completionRate,
       memo: recommendation.recommendationReason,
+      startedAt: sessionStartedAt || null,
+      endedAt: sessionEndedAt || (sessionStatus === 'ended' ? new Date().toISOString() : null),
+      plannedMinutes: Number(profile.availableMinutes),
+      elapsedSeconds,
+      completedExercises: completedCount,
       createdAt: new Date().toISOString(),
     };
     const nextHistory = saveWorkoutLog(log);
     setHistory(nextHistory);
     setSavedRoutineKey(currentRoutineKey);
     setSaveStatus('저장되었습니다. 같은 루틴은 한 번 더 저장되지 않습니다.');
+    setHistoryStatus('');
+
+    if (routineDate !== todayString()) {
+      setDateNotice('저장되었습니다. 새로 접속한 날짜의 루틴은 잠시 후 자동으로 갱신됩니다.');
+    }
+  }
+
+  function deleteHistoryItem(logId) {
+    const confirmed = window.confirm('이 운동 기록을 삭제할까요?');
+    if (!confirmed) return;
+
+    const nextHistory = deleteWorkoutLog(logId);
+    setHistory(nextHistory);
+    setHistoryStatus('운동 기록이 삭제되었습니다.');
   }
 
   const filteredLibrary = exerciseLibrary.filter((exercise) => {
@@ -190,12 +326,10 @@ function App() {
           <section className="routine-panel">
             <div className="routine-head">
               <div>
+                <p className="routine-date">{formatDisplayDate(routineDate)}</p>
                 <h2>오늘의 루틴: {labels.focus[recommendation.focus] || recommendation.focus}</h2>
                 <p>{recommendation.recommendationReason}</p>
               </div>
-              <button className="ghost-button desktop-only" onClick={() => setActiveTab('generate')}>
-                새 루틴
-              </button>
             </div>
 
             <div className="metrics-row">
@@ -204,18 +338,23 @@ function App() {
               <MetricCard label="주의 부위" value={cautionText} />
             </div>
 
-            <div className="action-row">
-              <button className="primary-button" onClick={saveTodayWorkout}>
-                {hasSavedCurrentRoutine ? '저장됨' : '운동 저장'}
-              </button>
-              <button className="ghost-button" onClick={() => setActiveTab('generate')}>
-                새 루틴
-              </button>
-            </div>
+            <WorkoutTimer
+              elapsedSeconds={elapsedSeconds}
+              plannedSeconds={plannedSeconds}
+              remainingSeconds={remainingSeconds}
+              sessionStatus={sessionStatus}
+              onStart={startWorkout}
+              onPause={pauseWorkout}
+              onResume={resumeWorkout}
+              onEnd={endWorkout}
+              onSave={saveTodayWorkout}
+              isSaved={hasSavedCurrentRoutine}
+            />
 
             {profile.injuries.length > 0 && (
               <div className="notice warning">주의 부위: {cautionText} 선택됨. 충돌 운동은 가능한 경우 제외됩니다.</div>
             )}
+            {dateNotice && <div className="notice warning">{dateNotice}</div>}
             {saveStatus && <div className="notice success">{saveStatus}</div>}
 
             <div className="checklist-title">
@@ -362,16 +501,24 @@ function App() {
       {activeTab === 'history' && (
         <main className="routine-panel">
           <h2>운동 기록</h2>
+          {historyStatus && <div className="notice success">{historyStatus}</div>}
           {history.length === 0 && <p className="muted">아직 저장된 운동 기록이 없습니다.</p>}
           <div className="history-list">
             {history.map((log) => (
               <article className="history-card" key={log.id}>
-                <h3>
-                  {log.date} - {labels.focus[log.focus] || log.focus}
-                </h3>
-                <p className="muted">
-                  완료율 {log.completionRate}% - 예상 {log.totalEstimatedCalories}kcal
-                </p>
+                <div className="history-card-head">
+                  <div>
+                    <h3>
+                      {log.date} - {labels.focus[log.focus] || log.focus}
+                    </h3>
+                    <p className="muted">
+                      완료율 {log.completionRate}% - 예상 {log.totalEstimatedCalories}kcal
+                    </p>
+                  </div>
+                  <button className="delete-button" type="button" onClick={() => deleteHistoryItem(log.id)}>
+                    삭제
+                  </button>
+                </div>
                 <p>{log.exercises.map((exercise) => exercise.name).join(', ')}</p>
               </article>
             ))}
@@ -388,6 +535,74 @@ function MetricCard({ label, value }) {
       <span>{label}</span>
       <strong>{value}</strong>
     </div>
+  );
+}
+
+function WorkoutTimer({
+  elapsedSeconds,
+  plannedSeconds,
+  remainingSeconds,
+  sessionStatus,
+  onStart,
+  onPause,
+  onResume,
+  onEnd,
+  onSave,
+  isSaved,
+}) {
+  const statusText = {
+    idle: `${Math.round(plannedSeconds / 60)}분 운동 예정`,
+    running: '운동 진행 중',
+    paused: '일시정지됨',
+    ended: `운동 종료 - ${formatTimer(elapsedSeconds)} 진행`,
+  }[sessionStatus];
+
+  return (
+    <section className={`timer-card ${sessionStatus}`}>
+      <div>
+        <span className="timer-label">{sessionStatus === 'ended' ? '진행 시간' : '남은 시간'}</span>
+        <strong>{sessionStatus === 'ended' ? formatTimer(elapsedSeconds) : formatTimer(remainingSeconds)}</strong>
+        <p>{statusText}</p>
+      </div>
+
+      <div className="timer-actions">
+        {sessionStatus === 'idle' && (
+          <button className="primary-button" onClick={onStart}>
+            운동 시작
+          </button>
+        )}
+        {sessionStatus === 'running' && (
+          <>
+            <button className="ghost-button" onClick={onPause}>
+              일시정지
+            </button>
+            <button className="ghost-button danger" onClick={onEnd}>
+              운동 종료
+            </button>
+          </>
+        )}
+        {sessionStatus === 'paused' && (
+          <>
+            <button className="primary-button" onClick={onResume}>
+              재개
+            </button>
+            <button className="ghost-button danger" onClick={onEnd}>
+              운동 종료
+            </button>
+          </>
+        )}
+        {sessionStatus === 'ended' && (
+          <button className="primary-button" onClick={onSave}>
+            {isSaved ? '저장됨' : '운동 저장'}
+          </button>
+        )}
+        {sessionStatus !== 'ended' && (
+          <button className="ghost-button" onClick={onSave}>
+            {isSaved ? '저장됨' : '운동 저장'}
+          </button>
+        )}
+      </div>
+    </section>
   );
 }
 

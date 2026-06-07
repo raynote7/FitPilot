@@ -170,6 +170,13 @@ button {
   line-height: 1.5;
 }
 
+.routine-date {
+  margin: 0 0 6px;
+  color: #2563eb;
+  font-size: 13px;
+  font-weight: 900;
+}
+
 .metrics-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -208,6 +215,61 @@ button {
   margin-bottom: 12px;
 }
 
+.timer-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
+  border: 1px solid #dce2ea;
+  border-radius: 10px;
+  padding: 14px;
+  background: #f8fafc;
+}
+
+.timer-card.running {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+}
+
+.timer-card.paused {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.timer-card.ended {
+  border-color: #86efac;
+  background: #ecfdf5;
+}
+
+.timer-label {
+  display: block;
+  margin-bottom: 4px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.timer-card strong {
+  display: block;
+  color: #111827;
+  font-size: 36px;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.timer-card p {
+  margin-top: 7px;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.timer-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
 .primary-button,
 .ghost-button {
   min-height: 42px;
@@ -227,6 +289,11 @@ button {
   border: 1px solid #dce2ea;
   background: #fff;
   color: #111827;
+}
+
+.ghost-button.danger {
+  border-color: #fecaca;
+  color: #b91c1c;
 }
 
 .primary-button.full,
@@ -511,6 +578,30 @@ button {
 .library-card,
 .history-card {
   padding: 12px;
+}
+
+.history-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.delete-button {
+  flex: 0 0 auto;
+  min-height: 32px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 6px 10px;
+  background: #fff;
+  color: #b91c1c;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.delete-button:hover,
+.delete-button:focus-visible {
+  background: #fef2f2;
 }
 
 .search {

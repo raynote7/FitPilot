@@ -4,3 +4,20 @@
 [2mPM 1:11:06[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/App.jsx. This could be due to syntax errors or importing non-existent modules. (see errors above)
 [2mPM 1:58:18[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/App.jsx. This could be due to syntax errors or importing non-existent modules. (see errors above)
 [2mPM 1:59:35[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2mPM 2:41:35[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [31m[Unhandled error] [1mReferenceError[22m: WorkoutTimer is not defined
+[39m > App ../../../../../FitPilot/src/App.jsx?t=1780810893945:317:31
+ > Object.react_stack_bottom_frame ../../../../../FitPilot/node_modules/.vite/deps/react-dom_client.js?v=e6cf9717:12867:12
+ > renderWithHooks ../../../../../FitPilot/node_modules/.vite/deps/react-dom_client.js?v=e6cf9717:4212:19
+ > updateFunctionComponent ../../../../../FitPilot/node_modules/.vite/deps/react-dom_client.js?v=e6cf9717:5568:16
+ > beginWork ../../../../../FitPilot/node_modules/.vite/deps/react-dom_client.js?v=e6cf9717:6139:20
+ > runWithFiberInDEV ../../../../../FitPilot/node_modules/.vite/deps/react-dom_client.js?v=e6cf9717:850:66
+ > performUnitOfWork ../../../../../FitPilot/node_modules/.vite/deps/react-dom_client.js?v=e6cf9717:8428:92
+ > workLoopSync ../../../../../FitPilot/node_modules/.vite/deps/react-dom_client.js?v=e6cf9717:8324:37
+ > renderRootSync ../../../../../FitPilot/node_modules/.vite/deps/react-dom_client.js?v=e6cf9717:8308:6
+ > performWorkOnRoot ../../../../../FitPilot/node_modules/.vite/deps/react-dom_client.js?v=e6cf9717:7993:27
+
+[2mPM 2:41:35[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [2m[console.warn] [22mAn error occurred in the <App> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
