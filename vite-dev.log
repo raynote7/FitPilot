@@ -42,3 +42,18 @@
 [2mPM 4:21:10[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css[22m
 [2mPM 5:14:51[22m [36m[1m[vite][22m[39m [32m.env.local changed, restarting server...[39m
 [2mPM 5:15:06[22m [36m[1m[vite][22m[39m server restarted.
+[2mPM 7:43:23[22m [36m[1m[vite][22m[39m [32mvite.config.js changed, restarting server...[39m
+[2mPM 7:43:23[22m [36m[1m[vite][22m[39m [32mvite.config.js changed, restarting server...[39m
+Port 5173 is in use, trying another one...
+[2mPM 7:43:24[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m Re-optimizing dependencies because vite config has changed
+[2mPM 7:43:26[22m [36m[1m[vite][22m[39m server restarted.
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://127.0.0.1:[1m5174[22m/FitPilot/[39m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://127.0.0.1:[1m5174[22m/FitPilot/[39m
+[2mPM 7:43:27[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [optimizer] scanning dependencies...
+[2mPM 7:43:29[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [optimizer] bundling dependencies...
+[2mPM 7:44:03[22m [36m[1m[vite][22m[39m [32mvite.config.js changed, restarting server...[39m
+[2mPM 7:44:03[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m Re-optimizing dependencies because vite config has changed
+[2mPM 7:44:04[22m [36m[1m[vite][22m[39m server restarted.
+[2mPM 7:44:05[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [optimizer] bundling dependencies...
