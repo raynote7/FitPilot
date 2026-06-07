@@ -195,6 +195,13 @@ function App() {
         );
       } catch (error) {
         console.warn('Failed to load Firebase user data', error);
+        const localProfile = loadProfile();
+        const localHistory = loadWorkoutHistory();
+        setProfile(localProfile);
+        setHistory(localHistory);
+        setRecommendation(
+          generateWorkoutRecommendation({ ...localProfile, workoutHistory: localHistory, exerciseLibrary })
+        );
         setAuthStatus('Firebase load failed - using local data');
       }
     });
@@ -230,13 +237,12 @@ function App() {
 
   function updateProfile(nextProfile) {
     setProfile(nextProfile);
+    saveProfile(nextProfile);
     if (useFirestore) {
       saveUserProfileToFirestore(currentUser.uid, nextProfile).catch((error) => {
         console.warn('Failed to save Firebase profile', error);
-        setAuthStatus('Firebase profile save failed');
+        setAuthStatus('Firebase profile save failed - saved locally');
       });
-    } else {
-      saveProfile(nextProfile);
     }
   }
 
@@ -372,15 +378,23 @@ function App() {
     };
     try {
       let nextHistory;
+      let savedRemotely = false;
       if (useFirestore) {
-        const savedLog = await saveWorkoutLogToFirestore(currentUser.uid, log);
-        nextHistory = [savedLog, ...history.filter((item) => item.id !== savedLog.id)].slice(0, 100);
+        try {
+          const savedLog = await saveWorkoutLogToFirestore(currentUser.uid, log);
+          nextHistory = [savedLog, ...history.filter((item) => item.id !== savedLog.id)].slice(0, 100);
+          savedRemotely = true;
+        } catch (error) {
+          console.warn('Failed to save workout to Firestore; saving locally instead', error);
+          nextHistory = saveWorkoutLog(log);
+          setAuthStatus('Firestore save failed - saved locally');
+        }
       } else {
         nextHistory = saveWorkoutLog(log);
       }
       setHistory(nextHistory);
       setSavedRoutineKey(currentRoutineKey);
-      setSaveStatus(useFirestore ? 'Firestore에 저장되었습니다.' : '저장되었습니다. 같은 루틴은 한 번 더 저장되지 않습니다.');
+      setSaveStatus(savedRemotely ? 'Firestore saved.' : 'Saved locally.');
       setHistoryStatus('');
     } catch (error) {
       console.warn('Failed to save workout', error);
@@ -400,7 +414,13 @@ function App() {
     try {
       let nextHistory;
       if (useFirestore) {
-        await deleteWorkoutLogFromFirestore(currentUser.uid, logId);
+        try {
+          await deleteWorkoutLogFromFirestore(currentUser.uid, logId);
+        } catch (error) {
+          console.warn('Failed to delete workout log from Firestore; deleting local copy instead', error);
+          setAuthStatus('Firestore delete failed - updated locally');
+        }
+        deleteWorkoutLog(logId);
         nextHistory = history.filter((log) => log.id !== logId);
       } else {
         nextHistory = deleteWorkoutLog(logId);

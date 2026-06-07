@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:firebase": "vite build --base=/",
+    "deploy:firebase": "npm run build:firebase && npx firebase-tools deploy --only hosting --project fitpilot-7d44e",
     "preview": "vite preview"
   },
   "dependencies": {
