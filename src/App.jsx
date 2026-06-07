@@ -224,6 +224,17 @@ function App() {
     setSessionEndedAt(new Date().toISOString());
   }
 
+  function resetTimerOnly() {
+    const confirmed = window.confirm('타이머를 초기화할까요? 체크한 운동과 입력한 중량은 유지됩니다.');
+    if (!confirmed) return;
+
+    setSessionStatus('idle');
+    setRemainingSeconds(plannedSeconds);
+    setSessionStartedAt('');
+    setSessionEndedAt('');
+    setSaveStatus('');
+  }
+
   function toggleExercise(exerciseId) {
     setRecommendation((prev) => ({
       ...prev,
@@ -347,6 +358,7 @@ function App() {
               onPause={pauseWorkout}
               onResume={resumeWorkout}
               onEnd={endWorkout}
+              onReset={resetTimerOnly}
               onSave={saveTodayWorkout}
               isSaved={hasSavedCurrentRoutine}
             />
@@ -547,6 +559,7 @@ function WorkoutTimer({
   onPause,
   onResume,
   onEnd,
+  onReset,
   onSave,
   isSaved,
 }) {
@@ -579,6 +592,9 @@ function WorkoutTimer({
             <button className="ghost-button danger" onClick={onEnd}>
               운동 종료
             </button>
+            <button className="ghost-button reset" onClick={onReset}>
+              타이머 리셋
+            </button>
           </>
         )}
         {sessionStatus === 'paused' && (
@@ -589,12 +605,20 @@ function WorkoutTimer({
             <button className="ghost-button danger" onClick={onEnd}>
               운동 종료
             </button>
+            <button className="ghost-button reset" onClick={onReset}>
+              타이머 리셋
+            </button>
           </>
         )}
         {sessionStatus === 'ended' && (
-          <button className="primary-button" onClick={onSave}>
-            {isSaved ? '저장됨' : '운동 저장'}
-          </button>
+          <>
+            <button className="primary-button" onClick={onSave}>
+              {isSaved ? '저장됨' : '운동 저장'}
+            </button>
+            <button className="ghost-button reset" onClick={onReset}>
+              타이머 리셋
+            </button>
+          </>
         )}
         {sessionStatus !== 'ended' && (
           <button className="ghost-button" onClick={onSave}>

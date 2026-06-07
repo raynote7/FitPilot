@@ -266,7 +266,7 @@ button {
 
 .timer-actions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 8px;
 }
 
@@ -294,6 +294,11 @@ button {
 .ghost-button.danger {
   border-color: #fecaca;
   color: #b91c1c;
+}
+
+.ghost-button.reset {
+  border-color: #cbd5e1;
+  color: #475569;
 }
 
 .primary-button.full,

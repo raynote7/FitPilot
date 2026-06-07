@@ -517,6 +517,164 @@ Remaining manual validation:
 - Confirm delete and verify the log disappears.
 - Refresh and confirm deleted log does not return.
 
+## Active Handoff: Workout Timer Reset
+
+Date: 2026-06-07
+
+Status:
+
+- Planning Agent, UX Agent, Development Agent, Validation Agent, and Recommendation Agent agree this belongs in the MVP.
+- This handoff is for Development Agent and Validation Agent execution.
+
+### Product Decision
+
+Add a timer-only reset action for the workout session timer.
+
+Rationale:
+
+- Users can accidentally press `Start Workout`.
+- `End Workout` can feel like a completed workout, not an error recovery action.
+- The user needs a low-risk way to reset timing without losing checklist progress.
+
+### MVP Scope
+
+In scope:
+
+- Add `Timer Reset` / `타이머 리셋` control.
+- Show it only after a timer session has started:
+  - `running`
+  - `paused`
+  - `ended`
+- Hide it in `idle`.
+- Ask for confirmation before reset.
+- Reset only timer/session fields:
+  - `sessionStatus` -> `idle`
+  - `remainingSeconds` -> configured workout time
+  - `sessionStartedAt` -> empty
+  - `sessionEndedAt` -> empty
+  - timer-related save status cleared
+- Preserve:
+  - current routine
+  - checked exercises
+  - entered weights
+  - `routineDate`
+  - history
+
+Out of scope:
+
+- Reset entire routine.
+- Clear checklist completion.
+- Clear weights.
+- Regenerate recommendations.
+- Delete saved history.
+
+### UX Requirements
+
+- Reset should be secondary, not primary.
+- Use copy:
+  - Korean: `타이머 리셋`
+  - Confirmation: `타이머를 초기화할까요? 체크한 운동과 입력한 중량은 유지됩니다.`
+  - English fallback: `Reset Timer`
+- Recommended state controls:
+  - `idle`: `운동 시작`, `운동 저장`
+  - `running`: `일시정지`, `운동 종료`, `타이머 리셋`
+  - `paused`: `재개`, `운동 종료`, `타이머 리셋`
+  - `ended`: `운동 저장`, `타이머 리셋`
+
+### Development Agent Tasks
+
+Primary files:
+
+- `src/App.jsx`
+- `src/styles.css`
+
+Implementation notes:
+
+- Add `resetTimerOnly()`.
+- Pass it into `WorkoutTimer`.
+- Add a reset button for `running`, `paused`, and `ended`.
+- Keep checklist state untouched.
+- Keep `routineDate` untouched.
+- Do not change storage or recommendation logic for this feature.
+
+### Validation Agent Tasks
+
+Required command:
+
+```bash
+npm run build
+```
+
+Manual scenarios:
+
+1. Idle state: confirm reset button is hidden.
+2. Start workout: confirm reset button appears.
+3. Click reset and cancel: confirm timer continues or remains unchanged.
+4. Click reset and confirm: timer returns to configured workout time and state returns to idle.
+5. Check one exercise and enter weight, then reset timer: confirm check and weight remain.
+6. Pause/resume/end flows still work.
+7. Save still works after reset.
+
+### Completion Criteria
+
+- Timer reset exists for active/paused/ended sessions.
+- Reset requires confirmation.
+- Reset affects only timer/session fields.
+- Checklist and weights remain intact.
+- Build passes.
+
+## Completed Workout Timer Reset Pass
+
+Date: 2026-06-07
+
+Changed files:
+
+- `src/App.jsx`
+- `src/styles.css`
+- `HANDOFF.md`
+
+Development completed:
+
+- Added `resetTimerOnly()`.
+- Added confirmation before timer reset.
+- Added `타이머 리셋` button for:
+  - `running`
+  - `paused`
+  - `ended`
+- Kept reset hidden in `idle`.
+- Reset now affects only timer/session fields:
+  - `sessionStatus`
+  - `remainingSeconds`
+  - `sessionStartedAt`
+  - `sessionEndedAt`
+  - `saveStatus`
+- Checklist completion, weights, current routine, `routineDate`, and history are preserved.
+- Updated timer action layout to support three controls without crowding.
+- Added low-emphasis reset button styling.
+
+Validation completed:
+
+```bash
+npm run build
+```
+
+Result:
+
+- Passed.
+- Existing Vite chunk-size warning remains non-blocking.
+
+Additional checks:
+
+- Local URL `http://127.0.0.1:5173/FitPilot/` returned HTTP 200.
+- Code check confirmed reset handler, state wiring, and timer reset buttons are present.
+
+Remaining manual validation:
+
+- Start workout and confirm reset appears.
+- Cancel reset and confirm timer state remains.
+- Confirm reset and verify timer returns to configured time.
+- Confirm checked exercises and weights remain after reset.
+
 ## Completed Date/Routine Refresh Pass
 
 Date: 2026-06-07
