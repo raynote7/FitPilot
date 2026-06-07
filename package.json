@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:github": "vite build --base=/FitPilot/",
     "build:firebase": "vite build --base=/",
     "deploy:firebase": "npm run build:firebase && npx firebase-tools deploy --only hosting --project fitpilot-7d44e",
     "preview": "vite preview"
