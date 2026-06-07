@@ -348,6 +348,33 @@ button {
   color: #fff;
 }
 
+.reason-toggle {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  border: 0;
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.reason-toggle:hover,
+.reason-toggle:focus-visible {
+  background: #1d4ed8;
+}
+
+.reason-detail {
+  margin-top: 8px;
+  border-left: 3px solid #2563eb;
+  padding: 7px 9px;
+  background: #eff6ff;
+  color: #1e3a8a;
+  border-radius: 0 8px 8px 0;
+}
+
 .weight-input {
   display: flex;
   align-items: center;

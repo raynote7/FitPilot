@@ -80,6 +80,7 @@ function App() {
   const [libraryQuery, setLibraryQuery] = useState('');
   const [saveStatus, setSaveStatus] = useState('');
   const [savedRoutineKey, setSavedRoutineKey] = useState('');
+  const [openReasonId, setOpenReasonId] = useState('');
 
   const completionRate = calculateCompletionRate(recommendation.exercises);
   const completedCount = recommendation.exercises.filter((exercise) => exercise.completed).length;
@@ -229,7 +230,11 @@ function App() {
                 <ExerciseCard
                   key={exercise.exerciseId}
                   exercise={exercise}
+                  isReasonOpen={openReasonId === exercise.exerciseId}
                   onToggle={() => toggleExercise(exercise.exerciseId)}
+                  onToggleReason={() =>
+                    setOpenReasonId((currentId) => (currentId === exercise.exerciseId ? '' : exercise.exerciseId))
+                  }
                   onWeightChange={(value) => updateWeight(exercise.exerciseId, value)}
                 />
               ))}
@@ -386,7 +391,7 @@ function MetricCard({ label, value }) {
   );
 }
 
-function ExerciseCard({ exercise, onToggle, onWeightChange }) {
+function ExerciseCard({ exercise, isReasonOpen, onToggle, onToggleReason, onWeightChange }) {
   return (
     <article className={`exercise-card ${exercise.completed ? 'done' : ''}`}>
       <div className="exercise-content">
@@ -407,8 +412,13 @@ function ExerciseCard({ exercise, onToggle, onWeightChange }) {
                 {muscleLabels[muscle] || muscle}
               </span>
             ))}
-            {exercise.reason && <span className="tag active-tag">추천 이유</span>}
+            {exercise.reason && (
+              <button className="reason-toggle" type="button" onClick={onToggleReason}>
+                {isReasonOpen ? '이유 닫기' : '추천 이유'}
+              </button>
+            )}
           </div>
+          {exercise.reason && isReasonOpen && <p className="reason-detail">{exercise.reason}</p>}
         </div>
       </div>
       <label className="weight-input">

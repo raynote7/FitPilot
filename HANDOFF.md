@@ -123,6 +123,7 @@ Work completed:
 - Replaced select inputs with pill-style option controls for time, goal, caution areas, experience, and split type.
 - Kept Body Map as supporting information instead of a dominant first-screen panel.
 - Preserved localStorage, Firebase-placeholder, and no-external-AI constraints.
+- Converted the `recommendation reason` pill from a dead visual badge into a clickable toggle that expands the reason text.
 
 Validation completed:
 
