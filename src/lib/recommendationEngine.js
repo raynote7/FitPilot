@@ -8,6 +8,28 @@ const focusBySplit = {
 const upperCategories = ['push', 'pull'];
 const lowerCategories = ['legs', 'core', 'cardio'];
 
+const splitLabels = {
+  three_split: '3-day split',
+  ppl: 'Push / Pull / Legs',
+  two_split: 'Upper / Lower',
+  full_body: 'Full body',
+};
+
+const focusLabels = {
+  push: 'Push',
+  pull: 'Pull',
+  legs: 'Legs + Core',
+  upper: 'Upper',
+  lower: 'Lower',
+  full_body: 'Full Body',
+};
+
+const injuryLabels = {
+  knee: 'knee',
+  shoulder: 'shoulder',
+  back: 'back',
+};
+
 function getRecentExerciseIds(workoutHistory, count = 2) {
   return workoutHistory
     .slice(0, count)
@@ -57,10 +79,14 @@ function goalScore(exercise, goal) {
   return 8;
 }
 
+function hasInjuryConflict(exercise, injuries) {
+  return exercise.injuryWarnings?.some((warning) => injuries.includes(warning));
+}
+
 function injuryPenalty(exercise, injuries) {
   let penalty = 0;
   for (const injury of injuries) {
-    if (exercise.injuryWarnings?.includes(injury)) penalty += 100;
+    if (exercise.injuryWarnings?.includes(injury)) penalty += 140;
   }
   if (injuries.includes('knee') && exercise.kneeFriendly) penalty -= 15;
   return penalty;
@@ -88,12 +114,20 @@ function buildFullBodySelection(scored, maxCount) {
   const required = ['push', 'pull', 'legs', 'core'];
 
   for (const category of required) {
-    const found = scored.find((item) => item.exercise.category === category && !selected.some((s) => s.exercise.id === item.exercise.id));
+    const found = scored.find(
+      (item) => item.exercise.category === category && !selected.some((s) => s.exercise.id === item.exercise.id)
+    );
     if (found) selected.push(found);
   }
 
   const rest = scored.filter((item) => !selected.some((s) => s.exercise.id === item.exercise.id));
   return [...selected, ...rest].slice(0, maxCount);
+}
+
+function chooseCandidatePool(scored, injuries, maxCount) {
+  const saferScored = scored.filter((item) => !hasInjuryConflict(item.exercise, injuries));
+  const minimumUsefulRoutineSize = Math.min(maxCount, 3);
+  return saferScored.length >= minimumUsefulRoutineSize ? saferScored : scored;
 }
 
 export function generateWorkoutRecommendation({
@@ -117,7 +151,9 @@ export function generateWorkoutRecommendation({
     .filter((item) => item.score > -20)
     .sort((a, b) => b.score - a.score);
 
-  const selected = focus === 'full_body' ? buildFullBodySelection(scored, maxCount) : scored.slice(0, maxCount);
+  const candidatePool = chooseCandidatePool(scored, injuries, maxCount);
+  const selected =
+    focus === 'full_body' ? buildFullBodySelection(candidatePool, maxCount) : candidatePool.slice(0, maxCount);
 
   const exercises = selected.map(({ exercise }) => {
     const estimatedCalories = exercise.estimatedMinutes * exercise.caloriesPerMinute;
@@ -148,19 +184,27 @@ export function generateWorkoutRecommendation({
 
 function buildReason(exercise, focus, recentExerciseIds, injuries) {
   const parts = [];
-  if (matchesFocus(exercise, focus)) parts.push('오늘 포커스에 맞는 운동입니다.');
-  if (!recentExerciseIds.includes(exercise.id)) parts.push('최근 운동과 중복을 피했습니다.');
-  if (injuries.includes('knee') && exercise.kneeFriendly) parts.push('무릎 부담을 조절하기 쉬운 선택입니다.');
-  if (exercise.injuryWarnings?.some((warning) => injuries.includes(warning))) parts.push('주의가 필요해 낮은 점수로 평가됩니다.');
+  if (matchesFocus(exercise, focus)) parts.push(`Matches today's ${focusLabels[focus] || focus} focus.`);
+  if (!recentExerciseIds.includes(exercise.id)) parts.push('Avoids repeating the most recent workouts.');
+  if (injuries.includes('knee') && exercise.kneeFriendly) parts.push('Good option when knee caution is selected.');
+  if (hasInjuryConflict(exercise, injuries)) parts.push('Included only because safer alternatives were limited.');
   return parts.join(' ');
 }
 
 function buildRecommendationReason(focus, splitType, workoutHistory, injuries) {
   if (!workoutHistory.length) {
-    return '첫 운동 기록이 없어 기본 분할 루틴 기준으로 시작합니다.';
+    return `No saved workout history yet, so FitPilot starts with the first ${focusLabels[focus] || focus} day in your ${
+      splitLabels[splitType] || splitType
+    } plan.`;
   }
-  const injuryText = injuries.length ? ` 부상 조건(${injuries.join(', ')})을 반영했습니다.` : '';
-  return `최근 운동 기록을 기준으로 ${splitType} 루틴의 다음 포커스인 ${focus} 운동을 추천했습니다.${injuryText}`;
+
+  const injuryText = injuries.length
+    ? ` Caution areas considered: ${injuries.map((injury) => injuryLabels[injury] || injury).join(', ')}.`
+    : '';
+
+  return `Based on your recent history, FitPilot recommends the next ${focusLabels[focus] || focus} workout in your ${
+    splitLabels[splitType] || splitType
+  } plan.${injuryText}`;
 }
 
 export function calculateCompletionRate(exercises) {

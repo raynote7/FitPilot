@@ -31,6 +31,15 @@ Core files to understand before implementation:
 - `vite.config.js`: Vite config and GitHub Pages base path
 - `.github/workflows/deploy.yml`: Pages deployment workflow
 
+## Workflow Agents
+
+- `ai_workflows/01_planning_agent.md`: MVP planning, scope control, risks, and acceptance criteria.
+- `ai_workflows/02_frontend_agent.md`: React UI, component structure, responsive layout, and interaction implementation.
+- `ai_workflows/03_recommendation_agent.md`: local deterministic workout recommendation logic.
+- `ai_workflows/04_validation_agent.md`: build checks, manual QA, regression scenarios, and deployment readiness.
+- `ai_workflows/05_deployment_agent.md`: GitHub Pages deployment workflow and release checks.
+- `ai_workflows/06_ux_agent.md`: UX journey review, usability priorities, copy, state feedback, and mobile gym-use guidance.
+
 ## GitHub Pages Deployment Structure
 
 FitPilot is deployed from the `main` branch through GitHub Actions.

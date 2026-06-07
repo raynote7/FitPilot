@@ -1,21 +1,25 @@
 import { useMemo, useState } from 'react';
 import { exerciseLibrary } from './data/exerciseLibrary.js';
-import { calculateCompletionRate, generateWorkoutRecommendation, getMuscleIntensity } from './lib/recommendationEngine.js';
+import {
+  calculateCompletionRate,
+  generateWorkoutRecommendation,
+  getMuscleIntensity,
+} from './lib/recommendationEngine.js';
 import { loadProfile, loadWorkoutHistory, saveProfile, saveWorkoutLog } from './lib/storage.js';
 import { isFirebaseEnabled } from './firebase.js';
 
 const labels = {
   splitType: {
-    three_split: '3분할',
+    three_split: '3-day split',
     ppl: 'Push / Pull / Legs',
-    two_split: '2분할',
-    full_body: '전신',
+    two_split: 'Upper / Lower',
+    full_body: 'Full body',
   },
   goal: {
-    fat_loss: '체지방 감량',
-    strength: '근력',
-    hypertrophy: '근비대',
-    general: '일반 체력',
+    fat_loss: 'Fat loss',
+    strength: 'Strength',
+    hypertrophy: 'Muscle growth',
+    general: 'General fitness',
   },
   focus: {
     push: 'Push',
@@ -26,31 +30,44 @@ const labels = {
     full_body: 'Full Body',
   },
   injury: {
-    knee: '무릎',
-    shoulder: '어깨',
-    back: '허리',
+    knee: 'Knee',
+    shoulder: 'Shoulder',
+    back: 'Back',
+  },
+  experience: {
+    beginner: 'Beginner',
+    intermediate: 'Intermediate',
+    advanced: 'Advanced',
   },
 };
 
-const muscleKorean = {
-  chest: '가슴',
-  back: '등/광배',
-  front_shoulder: '전면 어깨',
-  side_shoulder: '측면 어깨',
-  rear_shoulder: '후면 어깨',
-  biceps: '이두',
-  triceps: '삼두',
-  abs: '복부',
-  quads: '대퇴사두',
-  hamstrings: '햄스트링',
-  glutes: '둔근',
-  calves: '종아리',
-  lower_back: '허리/척추기립근',
-  traps: '승모',
+const muscleLabels = {
+  chest: 'Chest',
+  back: 'Back',
+  front_shoulder: 'Front shoulder',
+  side_shoulder: 'Side shoulder',
+  rear_shoulder: 'Rear shoulder',
+  biceps: 'Biceps',
+  triceps: 'Triceps',
+  abs: 'Abs',
+  quads: 'Quads',
+  hamstrings: 'Hamstrings',
+  glutes: 'Glutes',
+  calves: 'Calves',
+  lower_back: 'Lower back',
+  traps: 'Traps',
 };
 
 function todayString() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function routineKey(recommendation) {
+  return `${recommendation.focus}:${recommendation.exercises.map((exercise) => exercise.exerciseId).join('|')}`;
+}
+
+function createId() {
+  return crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 function App() {
@@ -61,18 +78,28 @@ function App() {
     generateWorkoutRecommendation({ ...loadProfile(), workoutHistory: loadWorkoutHistory(), exerciseLibrary })
   );
   const [libraryQuery, setLibraryQuery] = useState('');
+  const [saveStatus, setSaveStatus] = useState('');
+  const [savedRoutineKey, setSavedRoutineKey] = useState('');
 
   const completionRate = calculateCompletionRate(recommendation.exercises);
   const muscleIntensity = useMemo(() => getMuscleIntensity(recommendation.exercises), [recommendation.exercises]);
+  const currentRoutineKey = routineKey(recommendation);
+  const hasSavedCurrentRoutine = savedRoutineKey === currentRoutineKey;
 
   function updateProfile(nextProfile) {
     setProfile(nextProfile);
     saveProfile(nextProfile);
   }
 
-  function generateRoutine() {
-    const next = generateWorkoutRecommendation({ ...profile, workoutHistory: history, exerciseLibrary });
+  function generateRoutine({ ignoreHistory = false } = {}) {
+    const next = generateWorkoutRecommendation({
+      ...profile,
+      workoutHistory: ignoreHistory ? [] : history,
+      exerciseLibrary,
+    });
     setRecommendation(next);
+    setSavedRoutineKey('');
+    setSaveStatus('');
     setActiveTab('today');
   }
 
@@ -83,6 +110,8 @@ function App() {
         exercise.exerciseId === exerciseId ? { ...exercise, completed: !exercise.completed } : exercise
       ),
     }));
+    setSaveStatus('');
+    setSavedRoutineKey('');
   }
 
   function updateWeight(exerciseId, value) {
@@ -92,11 +121,18 @@ function App() {
         exercise.exerciseId === exerciseId ? { ...exercise, weight: value } : exercise
       ),
     }));
+    setSaveStatus('');
+    setSavedRoutineKey('');
   }
 
   function saveTodayWorkout() {
+    if (hasSavedCurrentRoutine) {
+      setSaveStatus('This routine is already saved.');
+      return;
+    }
+
     const log = {
-      id: crypto.randomUUID(),
+      id: createId(),
       date: todayString(),
       focus: recommendation.focus,
       exercises: recommendation.exercises,
@@ -107,6 +143,8 @@ function App() {
     };
     const nextHistory = saveWorkoutLog(log);
     setHistory(nextHistory);
+    setSavedRoutineKey(currentRoutineKey);
+    setSaveStatus('Saved to this browser.');
   }
 
   const filteredLibrary = exerciseLibrary.filter((exercise) => {
@@ -122,24 +160,26 @@ function App() {
     <div className="app-shell">
       <header className="hero">
         <div>
-          <p className="eyebrow">Local Recommendation Fitness MVP</p>
+          <p className="eyebrow">Local-first fitness MVP</p>
           <h1>FitPilot</h1>
-          <p className="hero-text">오늘 할 운동을 추천하고, 세트/횟수 체크와 자극 부위 맵을 보여주는 웹앱입니다.</p>
+          <p className="hero-text">
+            Get a practical workout for today, check off each exercise, and keep your history on this device.
+          </p>
         </div>
         <div className="status-card">
-          <span>Firebase</span>
-          <strong>{isFirebaseEnabled ? 'Enabled' : 'Local Mode'}</strong>
-          <small>초기 MVP는 브라우저 저장소로 동작합니다.</small>
+          <span>Storage mode</span>
+          <strong>{isFirebaseEnabled ? 'Firebase ready' : 'Local only'}</strong>
+          <small>{isFirebaseEnabled ? 'Firebase config is available.' : 'The MVP works without a backend.'}</small>
         </div>
       </header>
 
-      <nav className="tabs">
+      <nav className="tabs" aria-label="FitPilot sections">
         {[
-          ['today', '오늘 운동'],
-          ['generate', '자동 생성'],
-          ['body', '신체 부위'],
-          ['library', '운동 DB'],
-          ['history', '기록'],
+          ['today', 'Today'],
+          ['generate', 'New Routine'],
+          ['body', 'Body Map'],
+          ['library', 'Exercise DB'],
+          ['history', 'History'],
         ].map(([key, label]) => (
           <button key={key} className={activeTab === key ? 'active' : ''} onClick={() => setActiveTab(key)}>
             {label}
@@ -153,31 +193,50 @@ function App() {
             <div className="section-title-row">
               <div>
                 <p className="eyebrow">{todayString()}</p>
-                <h2>오늘 운동: {labels.focus[recommendation.focus] || recommendation.focus}</h2>
+                <h2>Today: {labels.focus[recommendation.focus] || recommendation.focus}</h2>
               </div>
-              <button className="primary" onClick={saveTodayWorkout}>오늘 기록 저장</button>
+              <button className="primary" onClick={saveTodayWorkout}>
+                {hasSavedCurrentRoutine ? 'Saved' : 'Save workout'}
+              </button>
             </div>
             <p className="muted">{recommendation.recommendationReason}</p>
+            {saveStatus && <p className="success-message">{saveStatus}</p>}
+
             <div className="summary-row">
-              <SummaryCard label="예상 칼로리" value={`${recommendation.totalEstimatedCalories} kcal`} />
-              <SummaryCard label="완료율" value={`${completionRate}%`} />
-              <SummaryCard label="종목 수" value={`${recommendation.exercises.length}개`} />
+              <SummaryCard label="Estimated calories" value={`${recommendation.totalEstimatedCalories} kcal`} />
+              <SummaryCard label="Completion" value={`${completionRate}%`} />
+              <SummaryCard label="Exercises" value={String(recommendation.exercises.length)} />
             </div>
+
             <div className="exercise-list">
               {recommendation.exercises.map((exercise) => (
                 <article className={`exercise-card ${exercise.completed ? 'done' : ''}`} key={exercise.exerciseId}>
                   <div className="exercise-main">
-                    <input type="checkbox" checked={exercise.completed} onChange={() => toggleExercise(exercise.exerciseId)} />
+                    <input
+                      type="checkbox"
+                      checked={exercise.completed}
+                      onChange={() => toggleExercise(exercise.exerciseId)}
+                      aria-label={`Mark ${exercise.name} complete`}
+                    />
                     <div>
                       <h3>{exercise.name}</h3>
-                      <p>{exercise.sets}세트 × {exercise.reps} · {exercise.estimatedCalories} kcal</p>
-                      <p className="muted">주 타겟: {exercise.primaryMuscles.map((m) => muscleKorean[m] || m).join(', ')}</p>
-                      <p className="reason">{exercise.reason}</p>
+                      <p>
+                        {exercise.sets} sets x {exercise.reps} - {exercise.estimatedMinutes} min -{' '}
+                        {exercise.estimatedCalories} kcal
+                      </p>
+                      <p className="muted">
+                        Main muscles: {exercise.primaryMuscles.map((m) => muscleLabels[m] || m).join(', ')}
+                      </p>
+                      {exercise.reason && <p className="reason">{exercise.reason}</p>}
                     </div>
                   </div>
                   <label className="weight-input">
-                    중량
-                    <input value={exercise.weight || ''} onChange={(e) => updateWeight(exercise.exerciseId, e.target.value)} placeholder="kg" />
+                    Weight
+                    <input
+                      value={exercise.weight || ''}
+                      onChange={(event) => updateWeight(exercise.exerciseId, event.target.value)}
+                      placeholder="kg"
+                    />
                   </label>
                 </article>
               ))}
@@ -190,13 +249,34 @@ function App() {
       {activeTab === 'generate' && (
         <main className="grid two-columns">
           <section className="panel">
-            <h2>자동 루틴 생성</h2>
-            <FormSelect label="분할 방식" value={profile.splitType} onChange={(value) => updateProfile({ ...profile, splitType: value })} options={labels.splitType} />
-            <FormSelect label="운동 시간" value={String(profile.availableMinutes)} onChange={(value) => updateProfile({ ...profile, availableMinutes: Number(value) })} options={{ 30: '30분', 45: '45분', 60: '60분', 90: '90분' }} />
-            <FormSelect label="목표" value={profile.goal} onChange={(value) => updateProfile({ ...profile, goal: value })} options={labels.goal} />
-            <FormSelect label="운동 수준" value={profile.experienceLevel} onChange={(value) => updateProfile({ ...profile, experienceLevel: value })} options={{ beginner: '초급', intermediate: '중급', advanced: '고급' }} />
+            <h2>New Routine</h2>
+            <p className="muted">Choose conditions, then generate a routine. Reset mode ignores workout history.</p>
+            <FormSelect
+              label="Split type"
+              value={profile.splitType}
+              onChange={(value) => updateProfile({ ...profile, splitType: value })}
+              options={labels.splitType}
+            />
+            <FormSelect
+              label="Available time"
+              value={String(profile.availableMinutes)}
+              onChange={(value) => updateProfile({ ...profile, availableMinutes: Number(value) })}
+              options={{ 30: '30 min', 45: '45 min', 60: '60 min', 90: '90 min' }}
+            />
+            <FormSelect
+              label="Goal"
+              value={profile.goal}
+              onChange={(value) => updateProfile({ ...profile, goal: value })}
+              options={labels.goal}
+            />
+            <FormSelect
+              label="Experience"
+              value={profile.experienceLevel}
+              onChange={(value) => updateProfile({ ...profile, experienceLevel: value })}
+              options={labels.experience}
+            />
             <div className="form-block">
-              <label>부상 조건</label>
+              <label>Caution areas</label>
               <div className="chip-row">
                 {Object.entries(labels.injury).map(([key, label]) => {
                   const checked = profile.injuries.includes(key);
@@ -207,9 +287,12 @@ function App() {
                       onClick={() =>
                         updateProfile({
                           ...profile,
-                          injuries: checked ? profile.injuries.filter((item) => item !== key) : [...profile.injuries, key],
+                          injuries: checked
+                            ? profile.injuries.filter((item) => item !== key)
+                            : [...profile.injuries, key],
                         })
                       }
+                      type="button"
                     >
                       {label}
                     </button>
@@ -217,17 +300,23 @@ function App() {
                 })}
               </div>
             </div>
-            <button className="primary full" onClick={generateRoutine}>루틴 생성</button>
+            <button className="primary full" onClick={() => generateRoutine()}>
+              Generate from history
+            </button>
+            <button className="secondary full" onClick={() => generateRoutine({ ignoreHistory: true })}>
+              Reset and ignore history
+            </button>
           </section>
+
           <section className="panel">
-            <h2>추천 로직</h2>
+            <h2>How it works</h2>
             <ul className="plain-list">
-              <li>3분할: Push → Pull → Legs + Core 순환</li>
-              <li>2분할: Upper ↔ Lower 순환</li>
-              <li>최근 1~2회 수행한 운동은 감점</li>
-              <li>부상 조건과 충돌하는 운동은 큰 감점</li>
-              <li>운동 시간에 맞춰 종목 수 자동 조절</li>
-              <li>외부 AI API 없이 로컬 점수 기반 추천</li>
+              <li>3-day and PPL routines rotate through Push, Pull, and Legs.</li>
+              <li>Upper / Lower routines rotate from the most recent saved focus.</li>
+              <li>Recent exercises are penalized to reduce repetition.</li>
+              <li>Caution areas strongly reduce risky exercises.</li>
+              <li>Workout time controls the number of exercises.</li>
+              <li>No paid AI API or backend is required.</li>
             </ul>
           </section>
         </main>
@@ -237,12 +326,14 @@ function App() {
         <main className="grid two-columns">
           <BodyMapPanel muscleIntensity={muscleIntensity} />
           <section className="panel">
-            <h2>오늘 자극 부위</h2>
+            <h2>Muscle Focus</h2>
             <div className="muscle-list">
-              {Object.entries(muscleIntensity).length === 0 && <p className="muted">아직 선택된 운동이 없습니다.</p>}
+              {Object.entries(muscleIntensity).length === 0 && (
+                <p className="muted">No selected workout yet.</p>
+              )}
               {Object.entries(muscleIntensity).map(([muscle, value]) => (
                 <div className="muscle-row" key={muscle}>
-                  <span>{muscleKorean[muscle] || muscle}</span>
+                  <span>{muscleLabels[muscle] || muscle}</span>
                   <meter min="0" max="6" value={value}></meter>
                 </div>
               ))}
@@ -254,16 +345,23 @@ function App() {
       {activeTab === 'library' && (
         <main className="panel">
           <div className="section-title-row">
-            <h2>운동 라이브러리</h2>
-            <input className="search" value={libraryQuery} onChange={(e) => setLibraryQuery(e.target.value)} placeholder="운동명, 부위, 카테고리 검색" />
+            <h2>Exercise Library</h2>
+            <input
+              className="search"
+              value={libraryQuery}
+              onChange={(event) => setLibraryQuery(event.target.value)}
+              placeholder="Search name, category, or muscle"
+            />
           </div>
           <div className="library-grid">
             {filteredLibrary.map((exercise) => (
               <article className="library-card" key={exercise.id}>
                 <h3>{exercise.name}</h3>
                 <p className="tag">{exercise.category}</p>
-                <p>주 타겟: {exercise.primaryMuscles.map((m) => muscleKorean[m] || m).join(', ')}</p>
-                <p className="muted">{exercise.defaultSets}세트 × {exercise.defaultReps} · {exercise.equipment}</p>
+                <p>Main muscles: {exercise.primaryMuscles.map((m) => muscleLabels[m] || m).join(', ')}</p>
+                <p className="muted">
+                  {exercise.defaultSets} sets x {exercise.defaultReps} - {exercise.equipment}
+                </p>
                 <p>{exercise.description}</p>
               </article>
             ))}
@@ -273,15 +371,21 @@ function App() {
 
       {activeTab === 'history' && (
         <main className="panel">
-          <h2>운동 기록</h2>
-          {history.length === 0 && <p className="muted">아직 저장된 운동 기록이 없습니다. 오늘 운동을 저장해보세요.</p>}
+          <h2>Workout History</h2>
+          {history.length === 0 && (
+            <p className="muted">No saved workouts yet. Save today's workout to build local history.</p>
+          )}
           <div className="history-list">
             {history.map((log) => (
               <article className="history-card" key={log.id}>
                 <div className="section-title-row">
                   <div>
-                    <h3>{log.date} · {labels.focus[log.focus] || log.focus}</h3>
-                    <p className="muted">완료율 {log.completionRate}% · 예상 {log.totalEstimatedCalories} kcal</p>
+                    <h3>
+                      {log.date} - {labels.focus[log.focus] || log.focus}
+                    </h3>
+                    <p className="muted">
+                      Completion {log.completionRate}% - Estimated {log.totalEstimatedCalories} kcal
+                    </p>
                   </div>
                 </div>
                 <p>{log.exercises.map((exercise) => exercise.name).join(', ')}</p>
@@ -307,9 +411,11 @@ function FormSelect({ label, value, onChange, options }) {
   return (
     <label className="form-block">
       <span>{label}</span>
-      <select value={value} onChange={(e) => onChange(e.target.value)}>
+      <select value={value} onChange={(event) => onChange(event.target.value)}>
         {Object.entries(options).map(([key, text]) => (
-          <option value={key} key={key}>{text}</option>
+          <option value={key} key={key}>
+            {text}
+          </option>
         ))}
       </select>
     </label>
@@ -317,11 +423,12 @@ function FormSelect({ label, value, onChange, options }) {
 }
 
 function BodyMapPanel({ muscleIntensity }) {
-  const active = (muscle) => muscleIntensity[muscle] ? 'body-part active' : 'body-part';
+  const active = (muscle) => (muscleIntensity[muscle] ? 'body-part active' : 'body-part');
+
   return (
     <section className="panel body-panel">
-      <h2>신체 부위 맵</h2>
-      <p className="muted">주 타겟과 보조 타겟을 단순 SVG로 표시합니다.</p>
+      <h2>Body Map</h2>
+      <p className="muted">Highlighted areas show today's primary and secondary muscle focus.</p>
       <div className="body-map-wrap">
         <svg className="body-map" viewBox="0 0 360 360" role="img" aria-label="front and back body map">
           <text x="70" y="24">Front</text>

@@ -32,7 +32,7 @@ button {
   gap: 24px;
   align-items: stretch;
   padding: 32px;
-  border-radius: 28px;
+  border-radius: 8px;
   background: linear-gradient(135deg, #111827, #1f2937);
   color: white;
   box-shadow: 0 20px 50px rgba(17, 24, 39, 0.22);
@@ -41,7 +41,7 @@ button {
 .hero h1 {
   margin: 0;
   font-size: clamp(38px, 8vw, 72px);
-  letter-spacing: -0.06em;
+  letter-spacing: 0;
 }
 
 .hero-text {
@@ -63,7 +63,7 @@ button {
 .status-card {
   min-width: 220px;
   padding: 20px;
-  border-radius: 22px;
+  border-radius: 8px;
   background: rgba(255,255,255,0.08);
   border: 1px solid rgba(255,255,255,0.16);
   display: flex;
@@ -94,9 +94,10 @@ button {
 
 .tabs button,
 .chip,
-.primary {
+.primary,
+.secondary {
   border: 0;
-  border-radius: 999px;
+  border-radius: 8px;
   padding: 11px 16px;
   background: white;
   color: #374151;
@@ -116,6 +117,15 @@ button {
   margin-top: 12px;
 }
 
+.secondary {
+  border: 1px solid #d1d5db;
+}
+
+.secondary.full {
+  width: 100%;
+  margin-top: 10px;
+}
+
 .grid {
   display: grid;
   gap: 22px;
@@ -127,7 +137,7 @@ button {
 
 .panel {
   background: white;
-  border-radius: 28px;
+  border-radius: 8px;
   padding: 24px;
   box-shadow: 0 12px 34px rgba(15, 23, 42, 0.08);
 }
@@ -135,7 +145,7 @@ button {
 .panel h2 {
   margin: 0 0 14px;
   font-size: 28px;
-  letter-spacing: -0.04em;
+  letter-spacing: 0;
 }
 
 .section-title-row {
@@ -155,6 +165,14 @@ button {
   font-size: 14px;
 }
 
+.success-message {
+  color: #047857;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
 .summary-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -164,7 +182,7 @@ button {
 
 .summary-card {
   padding: 18px;
-  border-radius: 20px;
+  border-radius: 8px;
   background: #f9fafb;
   border: 1px solid #e5e7eb;
 }
@@ -185,7 +203,7 @@ button {
 .history-card,
 .library-card {
   border: 1px solid #e5e7eb;
-  border-radius: 22px;
+  border-radius: 8px;
   padding: 18px;
   background: #fff;
 }
@@ -233,7 +251,7 @@ button {
 .form-block input,
 .form-block select {
   border: 1px solid #d1d5db;
-  border-radius: 14px;
+  border-radius: 8px;
   padding: 10px 12px;
   background: white;
 }
@@ -267,7 +285,7 @@ button {
 .body-map-wrap {
   display: grid;
   place-items: center;
-  border-radius: 22px;
+  border-radius: 8px;
   background: #f9fafb;
   padding: 14px;
 }
@@ -320,7 +338,7 @@ button {
 .tag {
   display: inline-block;
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: 8px;
   background: #eff6ff;
   color: #1d4ed8;
   font-weight: 800;
