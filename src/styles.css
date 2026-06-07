@@ -63,6 +63,24 @@ button {
   font-weight: 700;
 }
 
+.auth-panel {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.auth-button {
+  min-height: 31px;
+  border: 1px solid #d6dbe5;
+  border-radius: 999px;
+  padding: 7px 11px;
+  background: #fff;
+  color: #111827;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .tabs {
   display: flex;
   gap: 8px;

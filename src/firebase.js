@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
@@ -16,4 +16,6 @@ const hasFirebaseConfig = Boolean(firebaseConfig.apiKey && firebaseConfig.projec
 export const firebaseApp = hasFirebaseConfig ? initializeApp(firebaseConfig) : null;
 export const auth = firebaseApp ? getAuth(firebaseApp) : null;
 export const db = firebaseApp ? getFirestore(firebaseApp) : null;
+export const googleProvider = firebaseApp ? new GoogleAuthProvider() : null;
 export const isFirebaseEnabled = hasFirebaseConfig;
+export { GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut };

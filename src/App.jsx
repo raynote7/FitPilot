@@ -1,12 +1,26 @@
 import { useEffect, useMemo, useState } from 'react';
 import { exerciseLibrary } from './data/exerciseLibrary.js';
 import {
+  deleteWorkoutLogFromFirestore,
+  loadUserProfileFromFirestore,
+  loadWorkoutLogsFromFirestore,
+  saveUserProfileToFirestore,
+  saveWorkoutLogToFirestore,
+} from './lib/firebaseWorkoutStore.js';
+import {
+  auth,
+  googleProvider,
+  isFirebaseEnabled,
+  onAuthStateChanged,
+  signInWithPopup,
+  signOut as firebaseSignOut,
+} from './firebase.js';
+import {
   calculateCompletionRate,
   generateWorkoutRecommendation,
   getMuscleIntensity,
 } from './lib/recommendationEngine.js';
 import { deleteWorkoutLog, loadProfile, loadWorkoutHistory, saveProfile, saveWorkoutLog } from './lib/storage.js';
-import { isFirebaseEnabled } from './firebase.js';
 
 const labels = {
   splitType: {
@@ -113,12 +127,15 @@ function App() {
   const [sessionEndedAt, setSessionEndedAt] = useState('');
   const [routineDate, setRoutineDate] = useState(todayString());
   const [dateNotice, setDateNotice] = useState('');
+  const [currentUser, setCurrentUser] = useState(null);
+  const [authStatus, setAuthStatus] = useState(isFirebaseEnabled ? 'Firebase Ready' : 'Local Mode');
 
   const completionRate = calculateCompletionRate(recommendation.exercises);
   const completedCount = recommendation.exercises.filter((exercise) => exercise.completed).length;
   const muscleIntensity = useMemo(() => getMuscleIntensity(recommendation.exercises), [recommendation.exercises]);
   const currentRoutineKey = routineKey(recommendation);
   const hasSavedCurrentRoutine = savedRoutineKey === currentRoutineKey;
+  const useFirestore = Boolean(isFirebaseEnabled && currentUser);
   const plannedSeconds = Math.max(0, Number(profile.availableMinutes || 0) * 60);
   const elapsedSeconds = Math.max(0, plannedSeconds - remainingSeconds);
   const cautionText = profile.injuries.length
@@ -147,6 +164,41 @@ function App() {
       setRemainingSeconds(plannedSeconds);
     }
   }, [plannedSeconds, sessionStatus]);
+
+  useEffect(() => {
+    if (!isFirebaseEnabled || !auth) {
+      setAuthStatus('Local Mode');
+      return undefined;
+    }
+
+    return onAuthStateChanged(auth, async (user) => {
+      setCurrentUser(user);
+
+      if (!user) {
+        setAuthStatus('Firebase Ready');
+        return;
+      }
+
+      setAuthStatus(`Logged in as ${user.email || user.displayName || 'Firebase user'}`);
+
+      try {
+        const [remoteProfile, remoteHistory] = await Promise.all([
+          loadUserProfileFromFirestore(user.uid),
+          loadWorkoutLogsFromFirestore(user.uid),
+        ]);
+        const nextProfile = remoteProfile || loadProfile();
+        const nextHistory = remoteHistory || [];
+        setProfile(nextProfile);
+        setHistory(nextHistory);
+        setRecommendation(
+          generateWorkoutRecommendation({ ...nextProfile, workoutHistory: nextHistory, exerciseLibrary })
+        );
+      } catch (error) {
+        console.warn('Failed to load Firebase user data', error);
+        setAuthStatus('Firebase load failed - using local data');
+      }
+    });
+  }, []);
 
   useEffect(() => {
     const checkRoutineDate = () => {
@@ -178,7 +230,46 @@ function App() {
 
   function updateProfile(nextProfile) {
     setProfile(nextProfile);
-    saveProfile(nextProfile);
+    if (useFirestore) {
+      saveUserProfileToFirestore(currentUser.uid, nextProfile).catch((error) => {
+        console.warn('Failed to save Firebase profile', error);
+        setAuthStatus('Firebase profile save failed');
+      });
+    } else {
+      saveProfile(nextProfile);
+    }
+  }
+
+  async function handleGoogleSignIn() {
+    if (!auth || !googleProvider) {
+      setAuthStatus('Local Mode');
+      return;
+    }
+
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (error) {
+      console.warn('Google sign-in failed', error);
+      setAuthStatus('Google sign-in failed');
+    }
+  }
+
+  async function handleSignOut() {
+    if (!auth) return;
+
+    try {
+      await firebaseSignOut(auth);
+      const localProfile = loadProfile();
+      const localHistory = loadWorkoutHistory();
+      setCurrentUser(null);
+      setProfile(localProfile);
+      setHistory(localHistory);
+      setRecommendation(generateWorkoutRecommendation({ ...localProfile, workoutHistory: localHistory, exerciseLibrary }));
+      setAuthStatus('Firebase Ready');
+    } catch (error) {
+      console.warn('Sign-out failed', error);
+      setAuthStatus('Sign-out failed');
+    }
   }
 
   function generateRoutine({ ignoreHistory = false } = {}) {
@@ -257,7 +348,7 @@ function App() {
     setSavedRoutineKey('');
   }
 
-  function saveTodayWorkout() {
+  async function saveTodayWorkout() {
     if (hasSavedCurrentRoutine) {
       setSaveStatus('이미 저장된 루틴입니다.');
       return;
@@ -279,24 +370,47 @@ function App() {
       completedExercises: completedCount,
       createdAt: new Date().toISOString(),
     };
-    const nextHistory = saveWorkoutLog(log);
-    setHistory(nextHistory);
-    setSavedRoutineKey(currentRoutineKey);
-    setSaveStatus('저장되었습니다. 같은 루틴은 한 번 더 저장되지 않습니다.');
-    setHistoryStatus('');
+    try {
+      let nextHistory;
+      if (useFirestore) {
+        const savedLog = await saveWorkoutLogToFirestore(currentUser.uid, log);
+        nextHistory = [savedLog, ...history.filter((item) => item.id !== savedLog.id)].slice(0, 100);
+      } else {
+        nextHistory = saveWorkoutLog(log);
+      }
+      setHistory(nextHistory);
+      setSavedRoutineKey(currentRoutineKey);
+      setSaveStatus(useFirestore ? 'Firestore에 저장되었습니다.' : '저장되었습니다. 같은 루틴은 한 번 더 저장되지 않습니다.');
+      setHistoryStatus('');
+    } catch (error) {
+      console.warn('Failed to save workout', error);
+      setSaveStatus('운동 저장에 실패했습니다. 연결 상태와 Firebase 설정을 확인해주세요.');
+      return;
+    }
 
     if (routineDate !== todayString()) {
       setDateNotice('저장되었습니다. 새로 접속한 날짜의 루틴은 잠시 후 자동으로 갱신됩니다.');
     }
   }
 
-  function deleteHistoryItem(logId) {
+  async function deleteHistoryItem(logId) {
     const confirmed = window.confirm('이 운동 기록을 삭제할까요?');
     if (!confirmed) return;
 
-    const nextHistory = deleteWorkoutLog(logId);
-    setHistory(nextHistory);
-    setHistoryStatus('운동 기록이 삭제되었습니다.');
+    try {
+      let nextHistory;
+      if (useFirestore) {
+        await deleteWorkoutLogFromFirestore(currentUser.uid, logId);
+        nextHistory = history.filter((log) => log.id !== logId);
+      } else {
+        nextHistory = deleteWorkoutLog(logId);
+      }
+      setHistory(nextHistory);
+      setHistoryStatus('운동 기록이 삭제되었습니다.');
+    } catch (error) {
+      console.warn('Failed to delete workout log', error);
+      setHistoryStatus('운동 기록 삭제에 실패했습니다.');
+    }
   }
 
   const filteredLibrary = exerciseLibrary.filter((exercise) => {
@@ -315,7 +429,19 @@ function App() {
           <h1>FitPilot</h1>
           <p>기록 기반 오늘 운동 추천</p>
         </div>
-        <span className="mode-pill">{isFirebaseEnabled ? 'Firebase ready' : 'Local only'}</span>
+        <div className="auth-panel">
+          <span className="mode-pill">{authStatus}</span>
+          {isFirebaseEnabled && currentUser && (
+            <button className="auth-button" type="button" onClick={handleSignOut}>
+              로그아웃
+            </button>
+          )}
+          {isFirebaseEnabled && !currentUser && (
+            <button className="auth-button" type="button" onClick={handleGoogleSignIn}>
+              Google 로그인
+            </button>
+          )}
+        </div>
       </header>
 
       <nav className="tabs" aria-label="FitPilot sections">

@@ -675,6 +675,217 @@ Remaining manual validation:
 - Confirm reset and verify timer returns to configured time.
 - Confirm checked exercises and weights remain after reset.
 
+## Active Handoff: Firebase Auth And Firestore Expansion
+
+Date: 2026-06-07
+
+Status:
+
+- User approved implementation after Planning Agent analysis.
+- Firebase Web App registration is already complete.
+- Firebase MCP must not be used.
+- External AI APIs must not be used.
+
+### Product Decision
+
+Extend FitPilot from localStorage-only persistence to optional Firebase Authentication + Firestore persistence.
+
+The app must remain usable without Firebase config and without login.
+
+### Target User And Problem
+
+Target user:
+
+- A user who wants workout history and profile settings available beyond one browser/device.
+
+Problem:
+
+- Current localStorage data is device/browser-specific.
+- Firebase is already prepared as a future placeholder but not wired to Auth/Firestore.
+
+### MVP Scope
+
+In scope:
+
+- Keep existing Vite + React project.
+- Keep localStorage fallback.
+- Use Firebase config from `VITE_FIREBASE_*` environment variables.
+- Add Google sign-in and sign-out UI.
+- Show auth/storage state in the top UI.
+- Save/load workout logs from Firestore when logged in.
+- Save/load profile settings from Firestore when logged in.
+- Keep localStorage behavior when logged out or Firebase config is missing.
+- Update README with Firebase setup and GitHub Pages env guidance.
+
+Out of scope:
+
+- Firebase MCP.
+- External AI API.
+- Automatic migration of existing localStorage history into Firestore.
+- Email/password login.
+- Account deletion.
+- Offline Firestore persistence.
+- Firestore security rule authoring beyond README guidance.
+
+### Firestore Paths
+
+- Workout logs:
+  - `users/{uid}/workoutLogs/{logId}`
+- Profile settings:
+  - `users/{uid}/profile/settings`
+
+### Development Agent Tasks
+
+Primary files:
+
+- `src/firebase.js`
+- `src/lib/firebaseWorkoutStore.js`
+- `src/App.jsx`
+- `README.md`
+
+Likely changes:
+
+- Update `src/firebase.js` exports:
+  - `initializeApp`
+  - `getAuth`
+  - `getFirestore`
+  - `GoogleAuthProvider`
+  - `signInWithPopup`
+  - `signOut`
+  - `onAuthStateChanged`
+  - `googleProvider`
+  - `auth`
+  - `db`
+  - `isFirebaseEnabled`
+- Create `src/lib/firebaseWorkoutStore.js`:
+  - `saveWorkoutLogToFirestore(userId, log)`
+  - `loadWorkoutLogsFromFirestore(userId)`
+  - `saveUserProfileToFirestore(userId, profile)`
+  - `loadUserProfileFromFirestore(userId)`
+- Update `App.jsx`:
+  - Track auth user state.
+  - Add Google login/logout controls.
+  - Display storage/auth mode.
+  - If logged in and Firebase is enabled, use Firestore for save/load.
+  - Otherwise use localStorage.
+  - Preserve localStorage fallback.
+- Update `README.md`:
+  - Firebase Console setup.
+  - `.env.local` setup.
+  - Google Auth provider enablement.
+  - Firestore Database creation.
+  - localStorage fallback.
+  - GitHub Pages environment variables / secrets guidance.
+
+### Validation Agent Tasks
+
+Required command:
+
+```bash
+npm run build
+```
+
+Manual scenarios:
+
+1. With no `.env.local`, app builds and runs in Local Mode.
+2. Before login, saving workout still writes to localStorage.
+3. With Firebase config, top UI shows Firebase-ready state.
+4. Google login button opens sign-in flow.
+5. After login, user email/name is shown.
+6. Logged-in workout save writes to Firestore.
+7. Logged-in app load reads Firestore logs.
+8. Logged-in profile updates save to Firestore.
+9. Logout returns to localStorage fallback behavior.
+
+Regression checks:
+
+- `npm run build` passes.
+- Existing recommendation behavior still works.
+- Existing timer behavior still works.
+- Existing History delete still works in localStorage mode.
+- GitHub Pages base remains `/FitPilot/`.
+
+### Completion Criteria
+
+- Firebase config remains env-based and not hardcoded.
+- App works with Firebase disabled.
+- App works while logged out.
+- Google auth UI exists.
+- Logged-in Firestore save/load functions exist and are wired.
+- README documents required Firebase and deployment setup.
+
+## Completed Firebase Auth And Firestore Expansion Pass
+
+Date: 2026-06-07
+
+Changed files:
+
+- `src/firebase.js`
+- `src/lib/firebaseWorkoutStore.js`
+- `src/App.jsx`
+- `src/styles.css`
+- `README.md`
+- `HANDOFF.md`
+
+Development completed:
+
+- Updated `src/firebase.js` to export Auth and Google sign-in helpers:
+  - `auth`
+  - `db`
+  - `googleProvider`
+  - `isFirebaseEnabled`
+  - `GoogleAuthProvider`
+  - `onAuthStateChanged`
+  - `signInWithPopup`
+  - `signOut`
+- Added `src/lib/firebaseWorkoutStore.js`.
+- Added Firestore functions:
+  - `saveWorkoutLogToFirestore(userId, log)`
+  - `loadWorkoutLogsFromFirestore(userId)`
+  - `saveUserProfileToFirestore(userId, profile)`
+  - `loadUserProfileFromFirestore(userId)`
+- Added `deleteWorkoutLogFromFirestore(userId, logId)` to preserve existing History delete behavior for logged-in users.
+- Wired `App.jsx` auth state with `onAuthStateChanged`.
+- Added Google login and logout controls.
+- Added top UI status:
+  - `Local Mode`
+  - `Firebase Ready`
+  - `Logged in as ...`
+- When logged in and Firebase is configured, workout saves go to Firestore.
+- When logged out or Firebase config is missing, workout saves continue to use localStorage.
+- When logged in, profile changes save to Firestore.
+- When logged out or Firebase config is missing, profile changes continue to use localStorage.
+- On login, app attempts to load Firestore profile and workout logs.
+- On logout, app returns to local localStorage profile/history.
+- README now documents Firebase Console setup, `.env.local`, Google Provider, Firestore Database, fallback behavior, and GitHub Pages build-time env requirements.
+
+Validation completed:
+
+```bash
+npm run build
+```
+
+Result:
+
+- Passed.
+- Bundle size warning increased after Firebase SDK code was wired. This is expected and non-blocking for the current MVP.
+
+Additional checks:
+
+- Local URL `http://127.0.0.1:5173/FitPilot/` returned HTTP 200.
+- Code check confirmed Firebase exports, Firestore store functions, Auth wiring, Google login UI, and README Firebase docs are present.
+
+Remaining manual validation:
+
+- Create `.env.local` with real `VITE_FIREBASE_*` values.
+- Enable Google Authentication provider in Firebase Console.
+- Create Firestore Database.
+- Confirm Google sign-in popup works locally.
+- Confirm logged-in workout save writes to `users/{uid}/workoutLogs/{logId}`.
+- Confirm logged-in profile changes write to `users/{uid}/profile/settings`.
+- Confirm Firestore logs load after refresh while logged in.
+- Confirm GitHub Pages build receives `VITE_FIREBASE_*` values if Firebase should work in production.
+
 ## Completed Date/Routine Refresh Pass
 
 Date: 2026-06-07

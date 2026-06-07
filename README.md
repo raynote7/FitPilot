@@ -11,15 +11,16 @@ It recommends today's workout routine based on split type, available time, goal,
 - Exercise library with 45+ starter exercises
 - Simple body map visualization
 - Estimated calorie calculation
-- Workout history saved in browser localStorage
-- Firebase initialization placeholder for future backend integration
+- Workout history saved in browser localStorage when logged out
+- Optional Firebase Authentication with Google sign-in
+- Optional Firestore workout log and profile sync when logged in
 - GitHub Pages deployment workflow
 
 ## Tech Stack
 
 - Vite
 - React
-- Firebase SDK placeholder
+- Firebase SDK
 - GitHub Pages via GitHub Actions
 
 ## Local Development
@@ -57,17 +58,56 @@ To enable Pages:
 3. Under Build and deployment, select GitHub Actions.
 4. Push to main or manually run the deploy workflow.
 
-## Firebase
+## Firebase Authentication and Firestore
 
-The first MVP works without Firebase. It uses browser localStorage.
+FitPilot works without Firebase. If Firebase config is missing or the user is logged out, the app falls back to browser `localStorage`.
 
-To connect Firebase later:
+When Firebase config is available and the user signs in with Google, FitPilot stores:
 
-1. Create a Firebase project.
+- workout logs in `users/{uid}/workoutLogs/{logId}`
+- profile settings in `users/{uid}/profile/settings`
+
+### Firebase Console Setup
+
+1. Create or open a Firebase project.
 2. Register a Web App.
-3. Copy Firebase config values.
-4. Create `.env.local` using `.env.example`.
-5. Add Firestore/Auth logic in future backend integration modules.
+3. Copy the Web App config values.
+4. Go to Authentication.
+5. Enable the Google sign-in provider.
+6. Go to Firestore Database.
+7. Create a Firestore database.
+8. Configure Firestore security rules so each user can read/write only their own `users/{uid}` documents.
+
+### Local Environment
+
+Create `.env.local` in the project root. Do not commit this file.
+
+```bash
+VITE_FIREBASE_API_KEY=your_api_key
+VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your_project_id
+VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+VITE_FIREBASE_APP_ID=your_app_id
+```
+
+Then run:
+
+```bash
+npm run dev
+```
+
+Expected behavior:
+
+- No `.env.local`: Local Mode, localStorage only.
+- Firebase config present but logged out: Firebase Ready, localStorage fallback.
+- Logged in with Google: Firestore workout logs and profile settings.
+
+### GitHub Pages Environment Variables
+
+Vite reads `VITE_FIREBASE_*` values at build time. For GitHub Pages deployments, add the same values as GitHub repository secrets or workflow variables and expose them to the build step.
+
+If these values are not provided during the GitHub Actions build, the deployed app still works in Local Mode.
 
 ## Recommendation Engine
 
