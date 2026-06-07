@@ -128,6 +128,7 @@ function App() {
   const [routineDate, setRoutineDate] = useState(todayString());
   const [dateNotice, setDateNotice] = useState('');
   const [currentUser, setCurrentUser] = useState(null);
+  const [firestoreAvailable, setFirestoreAvailable] = useState(true);
   const [authStatus, setAuthStatus] = useState(isFirebaseEnabled ? 'Firebase Ready' : 'Local Mode');
 
   const completionRate = calculateCompletionRate(recommendation.exercises);
@@ -135,7 +136,7 @@ function App() {
   const muscleIntensity = useMemo(() => getMuscleIntensity(recommendation.exercises), [recommendation.exercises]);
   const currentRoutineKey = routineKey(recommendation);
   const hasSavedCurrentRoutine = savedRoutineKey === currentRoutineKey;
-  const useFirestore = Boolean(isFirebaseEnabled && currentUser);
+  const useFirestore = Boolean(isFirebaseEnabled && currentUser && firestoreAvailable);
   const plannedSeconds = Math.max(0, Number(profile.availableMinutes || 0) * 60);
   const elapsedSeconds = Math.max(0, plannedSeconds - remainingSeconds);
   const cautionText = profile.injuries.length
@@ -175,10 +176,12 @@ function App() {
       setCurrentUser(user);
 
       if (!user) {
+        setFirestoreAvailable(true);
         setAuthStatus('Firebase Ready');
         return;
       }
 
+      setFirestoreAvailable(true);
       setAuthStatus(`Logged in as ${user.email || user.displayName || 'Firebase user'}`);
 
       try {
@@ -195,6 +198,7 @@ function App() {
         );
       } catch (error) {
         console.warn('Failed to load Firebase user data', error);
+        setFirestoreAvailable(false);
         const localProfile = loadProfile();
         const localHistory = loadWorkoutHistory();
         setProfile(localProfile);
@@ -241,6 +245,7 @@ function App() {
     if (useFirestore) {
       saveUserProfileToFirestore(currentUser.uid, nextProfile).catch((error) => {
         console.warn('Failed to save Firebase profile', error);
+        setFirestoreAvailable(false);
         setAuthStatus('Firebase profile save failed - saved locally');
       });
     }
@@ -268,6 +273,7 @@ function App() {
       const localProfile = loadProfile();
       const localHistory = loadWorkoutHistory();
       setCurrentUser(null);
+      setFirestoreAvailable(true);
       setProfile(localProfile);
       setHistory(localHistory);
       setRecommendation(generateWorkoutRecommendation({ ...localProfile, workoutHistory: localHistory, exerciseLibrary }));
@@ -386,6 +392,7 @@ function App() {
           savedRemotely = true;
         } catch (error) {
           console.warn('Failed to save workout to Firestore; saving locally instead', error);
+          setFirestoreAvailable(false);
           nextHistory = saveWorkoutLog(log);
           setAuthStatus('Firestore save failed - saved locally');
         }
@@ -418,6 +425,7 @@ function App() {
           await deleteWorkoutLogFromFirestore(currentUser.uid, logId);
         } catch (error) {
           console.warn('Failed to delete workout log from Firestore; deleting local copy instead', error);
+          setFirestoreAvailable(false);
           setAuthStatus('Firestore delete failed - updated locally');
         }
         deleteWorkoutLog(logId);
