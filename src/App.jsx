@@ -9,10 +9,12 @@ import {
 } from './lib/firebaseWorkoutStore.js';
 import {
   auth,
+  getRedirectResult,
   googleProvider,
   isFirebaseEnabled,
   onAuthStateChanged,
   signInWithPopup,
+  signInWithRedirect,
   signOut as firebaseSignOut,
 } from './firebase.js';
 import {
@@ -112,6 +114,14 @@ function localDateFromIso(isoText) {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+function shouldUseRedirectSignIn() {
+  if (typeof window === 'undefined') return false;
+  const ua = navigator.userAgent || '';
+  const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(ua);
+  const isSmallTouchScreen = window.matchMedia?.('(pointer: coarse)').matches && window.innerWidth <= 900;
+  return Boolean(isMobile || isSmallTouchScreen);
 }
 
 function App() {
@@ -218,6 +228,16 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (!isFirebaseEnabled || !auth) return undefined;
+
+    getRedirectResult(auth).catch((error) => {
+      console.warn('Google redirect sign-in failed', error);
+      setAuthStatus('Google sign-in failed');
+    });
+    return undefined;
+  }, []);
+
+  useEffect(() => {
     const checkRoutineDate = () => {
       const today = todayString();
       if (routineDate === today) return;
@@ -264,6 +284,12 @@ function App() {
     }
 
     try {
+      if (shouldUseRedirectSignIn()) {
+        setAuthStatus('Redirecting to Google sign-in');
+        await signInWithRedirect(auth, googleProvider);
+        return;
+      }
+
       await signInWithPopup(auth, googleProvider);
     } catch (error) {
       console.warn('Google sign-in failed', error);

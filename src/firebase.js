@@ -1,5 +1,13 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
+import {
+  getAuth,
+  GoogleAuthProvider,
+  getRedirectResult,
+  onAuthStateChanged,
+  signInWithPopup,
+  signInWithRedirect,
+  signOut,
+} from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
@@ -18,4 +26,4 @@ export const auth = firebaseApp ? getAuth(firebaseApp) : null;
 export const db = firebaseApp ? getFirestore(firebaseApp) : null;
 export const googleProvider = firebaseApp ? new GoogleAuthProvider() : null;
 export const isFirebaseEnabled = hasFirebaseConfig;
-export { GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut };
+export { GoogleAuthProvider, getRedirectResult, onAuthStateChanged, signInWithPopup, signInWithRedirect, signOut };
