@@ -1,6 +1,13 @@
 node_modules/
 dist/
 .firebase/
+
+# Local environment files. Never commit real secrets or service config values.
 .env
-.env.local
+.env.*
+!.env.example
+
+# Local logs
+*.log
+
 .DS_Store
