@@ -886,6 +886,37 @@ Remaining manual validation:
 - Confirm Firestore logs load after refresh while logged in.
 - Confirm GitHub Pages build receives `VITE_FIREBASE_*` values if Firebase should work in production.
 
+## Completed GitHub Pages Firebase Env Wiring
+
+Date: 2026-06-07
+
+Changed files:
+
+- `.github/workflows/deploy.yml`
+- `HANDOFF.md`
+
+Development completed:
+
+- Added `VITE_FIREBASE_*` environment variables to the GitHub Pages workflow `Build` step.
+- Values are read from GitHub repository secrets:
+  - `VITE_FIREBASE_API_KEY`
+  - `VITE_FIREBASE_AUTH_DOMAIN`
+  - `VITE_FIREBASE_PROJECT_ID`
+  - `VITE_FIREBASE_STORAGE_BUCKET`
+  - `VITE_FIREBASE_MESSAGING_SENDER_ID`
+  - `VITE_FIREBASE_APP_ID`
+
+Validation completed:
+
+```bash
+npm run build
+```
+
+Result:
+
+- Passed locally.
+- The deployed GitHub Pages build will use Firebase only if these secrets are present in GitHub.
+
 ## Completed Date/Routine Refresh Pass
 
 Date: 2026-06-07
