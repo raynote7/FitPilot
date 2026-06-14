@@ -1,185 +1,732 @@
 # FitPilot Handoff
 
-Date: 2026-06-08
+Date: 2026-06-07
 
-## Current Status
+## Current Goal
 
-FitPilot is now running as a Firebase-backed web app.
+FitPilot was concepted by GPT and transferred to Codex for implementation review. The immediate goal is to make the project stable enough for specialized agents to improve product quality.
 
-Primary production URL:
+The first recovery pass is complete. The project now has a runnable baseline again, and the next agents can proceed from a compiling app.
 
-```text
-https://fitpilot-7d44e.firebaseapp.com
-```
+## Active Handoff: Workout Start Timer UX
 
-Secondary Firebase Hosting URL:
+Date: 2026-06-07
 
-```text
-https://fitpilot-7d44e.web.app
-```
+Status:
 
-Current stack:
+- Planning Agent and UX Agent agree with the direction.
+- Do not start broader product work before this scope is completed.
+- This handoff is for Development Agent and Validation Agent execution.
 
-- Vite + React frontend
-- Firebase Hosting
-- Firebase Authentication with Google login
-- Cloud Firestore workout/profile storage
-- localStorage fallback
-- No external AI API
+### Product Decision
 
-GitHub Pages exists as a backup deployment path, but Firebase Hosting is the current operating target because Google Auth works cleanly on Firebase-authorized domains.
+The Today screen currently over-emphasizes `New Routine`. There are too many `new routine` entry points, which weakens the main purpose of the app.
 
-Mobile recommendation:
+Replace that CTA weight with a workout-session action:
 
-- Use `https://fitpilot-7d44e.firebaseapp.com` as the official mobile URL.
-- If mobile Chrome returns to `Firebase Ready` after Google login, try Samsung Internet.
-- If Chrome must be used, clear Chrome site data for FitPilot/Firebase and retry.
+- Primary Today action should become `Start Workout`.
+- Starting a workout should start a countdown from the configured workout time.
+- `New Routine` should remain available, but only as a secondary navigation path.
 
-## Resolved Issues
+### Target User And Problem
 
-The Firebase integration originally failed for multiple setup reasons:
+Target user:
 
-1. Real Firebase values were placed in `.env.example` instead of `.env.local`.
-2. GitHub Pages builds initially missed `VITE_FIREBASE_*` build-time variables.
-3. Firebase Auth was configured before Cloud Firestore was ready.
-4. Firestore rules needed to match the app's `users/{uid}` data model.
-5. GitHub Pages auth domain handling was awkward, so the primary deployment moved to Firebase Hosting.
+- A user standing in the gym or about to start a workout.
 
-Current confirmed state:
+Problem:
 
-- Firebase config is loaded.
-- Google login works on Firebase Hosting.
-- Cloud Firestore database exists.
-- Firestore rules are applied for user-owned data.
-- Workout save creates Firestore documents.
-- Workout delete removes Firestore documents.
-- localStorage fallback remains active.
-- Mobile Samsung Internet login works on `https://fitpilot-7d44e.firebaseapp.com`.
-- Mobile Chrome may have redirect auth storage/cookie/site-data issues on some devices.
+- The app currently makes it too easy to change routines and not clear enough how to start executing today's routine.
+- The configured workout time, such as 30/45/60/90 minutes, is visible but not operational.
 
-## Important Files
+Expected user workflow:
 
-- `src/App.jsx`: main app state, auth handling, workout save/delete flow
-- `src/firebase.js`: Firebase initialization from `import.meta.env.VITE_FIREBASE_*`
-- `src/lib/firebaseWorkoutStore.js`: Firestore read/write/delete helpers
-- `src/lib/storage.js`: localStorage fallback helpers
-- `firebase.json`: Firebase Hosting config
-- `.firebaserc`: Firebase project id
-- `firestore.rules`: Firestore ownership rules
-- `.env.example`: placeholder env format only
-- `.env.local`: local real Firebase values, never commit
+1. Open FitPilot.
+2. Review today's routine.
+3. Press `Start Workout`.
+4. See remaining time count down.
+5. Check off exercises during the workout.
+6. Pause/resume or end the workout.
+7. Save the workout after progress is made.
 
-## Data Model
+### MVP Scope
 
-Firestore:
+In scope:
 
-```text
-users/{uid}/workoutLogs/{logId}
-users/{uid}/profile/settings
-```
+- Remove duplicate `New Routine` CTAs from the Today screen.
+- Keep `New Routine` accessible through the tab/navigation only.
+- Add workout session state in `src/App.jsx`.
+- Add countdown from `profile.availableMinutes`.
+- Add `Start Workout`, `Pause`, `Resume`, and `End Workout` controls.
+- Show remaining time in a compact, prominent timer block.
+- Keep checklist interaction available while timer is running.
+- Make `Save Workout` visually secondary before start and more natural after progress/end.
+- Save useful session metadata when saving:
+  - `startedAt`
+  - `endedAt`
+  - `plannedMinutes`
+  - `elapsedSeconds`
+  - `completedExercises`
 
-localStorage:
+Out of scope:
 
-```text
-fitpilot.workoutHistory
-fitpilot.profile
-```
+- Rest timer per set.
+- Exercise-by-exercise timers.
+- Push notifications.
+- Audio alerts.
+- Background timer persistence after closing the browser.
+- Firebase sync.
+- External AI APIs.
+- A new routing system or UI framework.
 
-## Current Save/Delete Behavior
+### UX Requirements
 
-Workout history is local-first:
+Today screen CTA hierarchy:
 
-1. Save/delete updates React state and localStorage first.
-2. If logged in and Firestore is available, the app attempts Firestore sync.
-3. If Firestore fails, the local update remains.
-4. The UI shows a Firestore fallback status when sync fails.
+1. `Start Workout` / timer controls.
+2. Checklist completion.
+3. `Save Workout`.
+4. `New Routine` only through navigation.
 
-This prevents user actions from being lost when Firestore rules, network, or database setup are temporarily broken.
+Timer states:
 
-## Commands
+- `idle`: show planned time and primary `Start Workout`.
+- `running`: show countdown plus `Pause` and `End Workout`.
+- `paused`: show countdown plus `Resume` and `End Workout`.
+- `ended`: show elapsed time and make `Save Workout` the natural next action.
 
-Local dev:
+Recommended copy:
+
+- `운동 시작`
+- `일시정지`
+- `재개`
+- `운동 종료`
+- `남은 시간`
+- `운동 저장`
+
+If Korean copy risks mojibake again, use stable English fallback:
+
+- `Start Workout`
+- `Pause`
+- `Resume`
+- `End Workout`
+- `Time Left`
+- `Save Workout`
+
+### Development Agent Tasks
+
+Primary files:
+
+- `src/App.jsx`
+- `src/styles.css`
+
+Likely changes in `src/App.jsx`:
+
+- Add state:
+  - `sessionStatus`: `idle | running | paused | ended`
+  - `remainingSeconds`
+  - `sessionStartedAt`
+  - `sessionEndedAt`
+- Use `useEffect` for countdown.
+- Reset timer when generating a new routine.
+- Prevent timer from going below zero.
+- When timer reaches zero, set status to `ended`.
+- Save session metadata in `saveTodayWorkout`.
+- Remove duplicate Today-screen `New Routine` buttons.
+
+Likely changes in `src/styles.css`:
+
+- Add timer card/block styles.
+- Add compact control row for pause/resume/end.
+- Ensure mobile 390px layout does not overflow.
+- Keep the Today checklist visible without excessive vertical push.
+
+Implementation caution:
+
+- Current `src/App.jsx` contains Korean copy. If editing produces mojibake, switch all newly touched user-facing copy in the affected area to English and document it.
+- Do not touch deployment workflow for this feature.
+- Do not commit runtime log file changes such as `vite-dev.log` or `vite-dev.err.log`.
+
+### Validation Agent Tasks
+
+Required command:
 
 ```bash
-npm install
+npm run build
+```
+
+Manual scenarios:
+
+1. Open `http://127.0.0.1:5173/FitPilot/`.
+2. Confirm Today screen has only one clear primary action: `Start Workout`.
+3. Confirm duplicate `New Routine` buttons are removed from Today.
+4. Press `Start Workout`.
+5. Confirm timer starts from configured time and counts down.
+6. Press `Pause`; confirm countdown stops.
+7. Press `Resume`; confirm countdown continues.
+8. Press `End Workout`; confirm session ends and save becomes natural.
+9. Check at least one exercise and save.
+10. Confirm History still loads after refresh.
+11. Generate a new routine and confirm timer resets to the selected available time.
+12. Check mobile width around 390px for overflow and CTA clarity.
+
+Regression checks:
+
+- No Firebase dependency.
+- No external AI API dependency.
+- Recommendation generation still works.
+- `npm run build` passes.
+- GitHub Pages base remains `/FitPilot/`.
+
+### Completion Criteria
+
+- Today screen no longer has excessive `New Routine` CTAs.
+- Workout timer supports start, pause, resume, end.
+- Timer is based on configured workout time.
+- Save log includes session metadata.
+- Build passes.
+- Manual validation confirms the core flow.
+
+## Active Handoff: Today Date And Routine Date Refresh
+
+Date: 2026-06-07
+
+Status:
+
+- Planning Agent has consolidated the direction.
+- This handoff is for Development Agent and Validation Agent execution.
+- Do not add a large routine-generation CTA to the Today screen.
+
+### Product Decision
+
+The Today screen should clearly show which date the routine belongs to. The app should also handle the edge case where the browser stays open overnight and the displayed routine is from yesterday.
+
+Do not hard-refresh the whole page. Handle date changes inside React state.
+
+### UX Principle
+
+The product promise is:
+
+- Open FitPilot and immediately see today's routine.
+
+Therefore:
+
+- Do not add a large `Generate today's routine` button to the Today screen.
+- Keep routine generation automatic on load.
+- Keep routine changes in the `New Routine` tab.
+- Add a clear date label to the Today screen.
+
+### Target User And Problem
+
+Target user:
+
+- A user who opens FitPilot before working out, or leaves the app tab open across days.
+
+Problem:
+
+- Without a date label, the user cannot tell whether the displayed routine is actually today's routine.
+- If the app remains open overnight, the user may see yesterday's routine on today's date.
+
+### MVP Scope
+
+In scope:
+
+- Add a visible date label to the Today screen.
+- Add `routineDate` state to track which date the current recommendation belongs to.
+- Set `routineDate` when the initial recommendation is created.
+- Set `routineDate` when a new routine is generated.
+- Detect date changes while the app is open.
+- If date changes and workout session is `idle`, automatically regenerate today's routine.
+- If date changes while workout is `running`, `paused`, or unsaved `ended`, do not auto-replace the routine.
+- Show a notice when the date changed but the current session should be preserved.
+- Include `routineDate` in saved workout logs.
+
+Out of scope:
+
+- Full page reload.
+- Background persistence after browser close.
+- Server sync.
+- Firebase date sync.
+- Timezone selector.
+- Push notifications.
+
+### Date Policy
+
+Use local browser date via the existing `todayString()` helper unless there is a clear reason to change it.
+
+States:
+
+- `idle`
+
+  - If `routineDate !== todayString()`, generate a fresh recommendation for today.
+  - Update `routineDate` to today.
+  - Reset session timer to the configured workout time.
+- `running` / `paused`
+
+  - Do not replace the routine.
+  - Show a notice such as:
+    - Korean: `날짜가 바뀌었습니다. 진행 중인 운동을 종료하거나 저장한 뒤 오늘 루틴을 새로 불러올 수 있습니다.`
+    - English fallback: `The date changed. Finish or save this workout before loading today's routine.`
+- `ended`
+
+  - If unsaved, do not replace the routine.
+  - Show the same notice and keep save as the next action.
+  - After saving, allow the app to load today's routine if dates differ.
+
+Saved workout date:
+
+- Add `routineDate` to the log.
+- Keep existing `date`.
+- Recommended `date` policy:
+  - If `sessionStartedAt` exists, use the local date from `sessionStartedAt`.
+  - Otherwise use `routineDate`.
+  - Keep `createdAt` as actual save timestamp.
+
+### Development Agent Tasks
+
+Primary files:
+
+- `src/App.jsx`
+- `src/styles.css`
+
+Likely changes in `src/App.jsx`:
+
+- Add `routineDate` state initialized to `todayString()`.
+- Add a formatted display date helper, for example `formatDisplayDate(routineDate)`.
+- Add date label near `오늘의 루틴`.
+- Add date-change detection with `useEffect`.
+- Use an interval such as 60 seconds to compare `todayString()` with `routineDate`.
+- Add `dateNotice` or similar state for the preserved-session warning.
+- Clear notice when routine is refreshed or saved.
+- Update `generateRoutine` to set `routineDate` to `todayString()`.
+- Update save log to include `routineDate`.
+- After saving an ended stale routine, optionally refresh today's routine and reset timer.
+
+Likely changes in `src/styles.css`:
+
+- Add compact date label style.
+- Add stale-date notice style if existing `notice warning` is not enough.
+
+### Validation Agent Tasks
+
+Required command:
+
+```bash
+npm run build
+```
+
+Manual scenarios:
+
+1. Open Today screen.
+2. Confirm date is visible near the routine title.
+3. Confirm routine still appears automatically on load.
+4. Confirm no large `Generate today's routine` CTA was added.
+5. Generate a new routine from the New Routine tab and confirm the date remains today's date.
+6. Start, pause, resume, end, and save workflow still works.
+7. Save workout and confirm History still shows saved log.
+
+Date edge-case validation:
+
+- If practical, temporarily simulate a stale `routineDate` in code or local state.
+- In `idle`, stale date should regenerate today's routine.
+- In `running` or `paused`, stale date should not replace the routine.
+- In unsaved `ended`, stale date should not replace the routine before saving.
+- Saved logs should contain `routineDate`.
+
+Regression checks:
+
+- No Firebase dependency.
+- No external AI API dependency.
+- `New Routine` remains a secondary tab flow.
+- GitHub Pages base remains `/FitPilot/`.
+
+### Completion Criteria
+
+- Today screen displays a clear date.
+- App still auto-displays a routine on load.
+- Stale idle routine refreshes internally without full page reload.
+- Active/unsaved sessions are not overwritten by date changes.
+- Saved logs include `routineDate`.
+- Build passes.
+
+## Completed Timer Implementation Pass
+
+Date: 2026-06-07
+
+Changed files:
+
+- `src/App.jsx`
+- `src/styles.css`
+- `HANDOFF.md`
+
+Development completed:
+
+- Removed duplicate `New Routine` CTA buttons from the Today screen.
+- Kept `New Routine` available through the navigation tab and the dedicated New Routine screen.
+- Added workout session state in `src/App.jsx`:
+  - `sessionStatus`
+  - `remainingSeconds`
+  - `sessionStartedAt`
+  - `sessionEndedAt`
+- Added countdown behavior with `useEffect`.
+- Added timer states:
+  - `idle`
+  - `running`
+  - `paused`
+  - `ended`
+- Added controls:
+  - `운동 시작`
+  - `일시정지`
+  - `재개`
+  - `운동 종료`
+  - `운동 저장`
+- Reset the workout timer when a new routine is generated.
+- Saved session metadata in workout logs:
+  - `startedAt`
+  - `endedAt`
+  - `plannedMinutes`
+  - `elapsedSeconds`
+  - `completedExercises`
+- Added timer card styles and state-specific visual treatment.
+
+Validation completed:
+
+```bash
+npm run build
+```
+
+Result:
+
+- Passed.
+- Vite reported a chunk-size warning slightly above 500 kB. This is acceptable for the current MVP and is not a functional failure.
+
+Additional checks:
+
+- Local URL `http://127.0.0.1:5173/FitPilot/` returned HTTP 200.
+- Recommendation smoke test still passed: first routine `push`, second routine after saved-history simulation `pull`.
+- Code check confirmed Today-screen `New Routine` buttons were removed; remaining `New Routine` references are the navigation tab and New Routine screen.
+
+Remaining validation:
+
+- Manual browser click-through should confirm:
+  - `운동 시작` starts countdown.
+  - `일시정지` stops countdown.
+  - `재개` resumes countdown.
+  - `운동 종료` ends the session.
+  - `운동 저장` records the workout and history still persists after refresh.
+
+Note:
+
+- `vite-dev.log` and `vite-dev.err.log` may be touched by the local Vite server. They are runtime logs and should not be included in the feature commit unless intentionally tracking runtime logs.
+
+## Project Summary
+
+FitPilot is a local-first fitness web app MVP.
+
+- Stack: Vite, React, Firebase SDK placeholder, browser localStorage.
+- Current recommendation approach: local deterministic rule/scoring engine.
+- No external AI API should be added in the current MVP.
+- Firebase must remain optional placeholder behavior.
+- GitHub Pages deployment should keep Vite base path `/FitPilot/`.
+
+Important files:
+
+- `src/App.jsx`: main UI and user flow.
+- `src/styles.css`: styling and responsive layout.
+- `src/lib/recommendationEngine.js`: workout recommendation logic.
+- `src/lib/storage.js`: localStorage persistence.
+- `src/data/exerciseLibrary.js`: starter exercise database.
+- `src/firebase.js`: Firebase placeholder initialization.
+- `.github/workflows/deploy.yml`: GitHub Pages workflow.
+- `ai_workflows/*.md`: agent-specific instructions.
+
+## Current State
+
+The repo already contains agent guide files:
+
+- `ai_workflows/00_project_context.md`
+- `ai_workflows/01_planning_agent.md`
+- `ai_workflows/02_frontend_agent.md`
+- `ai_workflows/03_recommendation_agent.md`
+- `ai_workflows/04_validation_agent.md`
+- `ai_workflows/05_deployment_agent.md`
+
+There was also an existing `HANDOFF.md`, but its Korean text was corrupted, so it was replaced with this readable handoff.
+
+## Completed Recovery Work
+
+### Development Agent
+
+Changed files:
+
+- `src/App.jsx`
+- `src/lib/recommendationEngine.js`
+- `src/styles.css`
+
+Work completed:
+
+- Rebuilt `src/App.jsx` into valid React/JSX.
+- Replaced corrupted user-facing copy with stable English copy.
+- Kept the existing Vite + React + localStorage architecture.
+- Kept Firebase optional.
+- Added save feedback for the current workout.
+- Added duplicate-save prevention for the same current routine during the active session.
+- Added a reset generation path that ignores history.
+- Replaced corrupted recommendation reason strings with readable English.
+- Strengthened injury/caution handling so direct conflicts are avoided when safer alternatives exist.
+- Added CSS support for secondary buttons and save-success feedback.
+- Removed newly introduced non-ASCII separators from edited source files.
+
+### Validation Agent
+
+Commands/checks completed:
+
+```bash
+npm run build
+```
+
+Result:
+
+- Passed after running with approved elevated permissions.
+- Sandbox-only run still fails with `spawn EPERM`, but the elevated build succeeds.
+
+Recommendation regression check completed with Node:
+
+- First 3-day split routine generated `push`.
+- Saved-history simulation rotated the next routine to `pull`.
+- Knee caution produced no direct knee-warning exercises in the first routine.
+- Completion rate returned `0` for empty exercises and `50` for one of two completed.
+
+Local HTTP check:
+
+- `http://127.0.0.1:5173/FitPilot/` returned HTTP 200 from the local Vite server.
+
+Browser automation note:
+
+- Playwright is not installed in this project, so a full automated browser interaction was not run.
+- Manual browser validation is still recommended before deployment.
+
+## Completed UX Pass 2
+
+Date: 2026-06-07
+
+Goal:
+
+- Reflect the UX Agent Figma direction in the actual React UI.
+- Make today's routine the primary app experience.
+- Keep new routine creation as a secondary reset flow that can ignore history.
+
+Changed files:
+
+- `src/App.jsx`
+- `src/styles.css`
+
+Work completed:
+
+- Reworked the app shell into a compact Figma-style header with `Local only` status.
+- Made the Today screen the main dashboard.
+- Added Figma-style summary cards for calories, completion, and caution areas.
+- Added primary and secondary actions near the top of the Today screen.
+- Reworked workout cards into denser checklist cards with selected/done styling.
+- Added a visible completion badge like `1/6 complete`.
+- Added notice blocks for caution areas and saved-state feedback.
+- Reworked New Routine into a reset flow with a visible ignore-history banner.
+- Replaced select inputs with pill-style option controls for time, goal, caution areas, experience, and split type.
+- Kept Body Map as supporting information instead of a dominant first-screen panel.
+- Preserved localStorage, Firebase-placeholder, and no-external-AI constraints.
+- Converted the `recommendation reason` pill from a dead visual badge into a clickable toggle that expands the reason text.
+
+Validation completed:
+
+```bash
+npm run build
+```
+
+Result:
+
+- Passed.
+
+Local checks:
+
+- `http://127.0.0.1:5173/FitPilot/` returned HTTP 200.
+- Recommendation smoke test still rotated first `push` routine to second `pull` routine with saved-history simulation.
+
+Remaining UX validation:
+
+- User should visually inspect the in-app browser at mobile-ish width and desktop width.
+- Confirm Korean text renders correctly on GitHub Pages after deployment.
+- Confirm Today, New Routine, Body Map, Exercise DB, and History tabs are comfortable enough before the next push.
+
+## Previous Critical Findings
+
+### 1. `src/App.jsx` is currently broken
+
+The file contains corrupted Korean text and several syntax-breaking string/JSX issues.
+
+Examples observed:
+
+- `muscleKorean` has unterminated strings around muscle labels.
+- Some JSX tags are malformed, such as button and heading closing tags appearing inside text.
+- Several props have broken quotes, especially `SummaryCard` labels and `FormSelect` options.
+- User-facing copy is unreadable because Korean text is mojibake.
+
+Status:
+
+- Resolved in the first recovery pass.
+
+### 2. Build was attempted but could not complete in the sandbox
+
+Command attempted:
+
+```bash
+npm run build
+```
+
+Observed result:
+
+- Build failed before normal source compilation because Vite/Rolldown hit `spawn EPERM` while loading config.
+- This appears sandbox-related.
+- A permission escalation retry was requested but aborted by the user/session.
+
+Status:
+
+- Elevated `npm run build` now passes.
+- Sandbox `spawn EPERM` remains an environment limitation, not an app source failure.
+
+### 3. Existing architecture is suitable for MVP continuation
+
+The overall project direction is coherent:
+
+- Vite + React structure is simple.
+- Recommendation logic is isolated in `src/lib/recommendationEngine.js`.
+- Exercise data is isolated in `src/data/exerciseLibrary.js`.
+- Storage is isolated in `src/lib/storage.js`.
+- Firebase is optional and not required for current app behavior.
+- Deployment workflow is conventional for GitHub Pages.
+
+No full rewrite is recommended.
+
+## Recommended Next Agent Work Order
+
+### 1. Frontend Agent
+
+Primary goal: polish the Figma-inspired UI after visual review.
+
+Files:
+
+- `src/App.jsx`
+- `src/styles.css` if layout needs adjustment
+
+Tasks:
+
+- Tune spacing, card density, and copy based on visual review.
+- Confirm Korean localization renders correctly end-to-end.
+- Keep current component structure unless a small split clearly improves readability.
+- Keep the app local-first and do not introduce routing, UI kits, backend calls, or external AI APIs.
+- Make the first screen feel like a workout checklist app, not a landing page.
+
+Suggested UX direction:
+
+- Default tab: today's workout.
+- Primary views: Today, New Routine, Body Map, Exercise DB, History.
+- Use clear, readable labels. If Korean copy is used, verify it renders correctly in the browser. Safe English fallback labels:
+  - Today
+  - New Routine
+  - Body Map
+  - Exercise DB
+  - History
+- Make save feedback visible after saving.
+- Prevent duplicate saves for the same current workout if possible.
+
+### 2. Recommendation Agent
+
+Primary goal: expand recommendation quality and test coverage.
+
+Files:
+
+- `src/lib/recommendationEngine.js`
+- `src/data/exerciseLibrary.js` if exercise metadata must change
+
+Tasks:
+
+- Confirm injury conflicts are excluded or strongly avoided when safer alternatives exist.
+- Keep scoring deterministic and explainable.
+- Replace corrupted Korean reason strings with readable copy.
+- Avoid exposing raw internal values such as `three_split`, `knee`, or `pull` in user-facing explanations.
+- Add or document regression cases for:
+  - first routine with no history;
+  - second routine after a saved workout;
+  - knee, shoulder, and back caution selections;
+  - 30, 45, 60, and 90 minute routines.
+
+### 3. Validation Agent
+
+Primary goal: run full browser/manual validation.
+
+Required command:
+
+```bash
+npm run build
+```
+
+Manual checks:
+
+- Open app locally with `npm run dev`.
+- Generate a routine.
+- Complete at least one exercise.
+- Save today's workout.
+- Refresh and confirm localStorage history loads.
+- Generate a second routine and confirm focus rotation or recent duplication reduction.
+- Test at least one injury/caution setting.
+- Check mobile width around 390px.
+- Confirm no Firebase or external AI API is required.
+
+### 4. Deployment Agent
+
+Primary goal: confirm GitHub Pages readiness after build passes.
+
+Files:
+
+- `vite.config.js`
+- `.github/workflows/deploy.yml`
+
+Checks:
+
+- `vite.config.js` keeps `base: '/FitPilot/'`.
+- Workflow installs dependencies and runs `npm run build`.
+- Workflow uploads `./dist`.
+- Pages source is GitHub Actions.
+- Expected URL remains `https://raynote7.github.io/FitPilot/`.
+
+## Implementation Cautions
+
+- Do not create a new project.
+- Do not move the app to another framework.
+- Do not add paid or hosted AI APIs.
+- Do not make Firebase required.
+- Preserve localStorage history shape where possible.
+- Avoid broad refactors until the app compiles.
+- Treat Korean copy corruption as a source repair task, not merely a cosmetic issue.
+
+## Suggested Immediate Next Command
+
+For manual validation:
+
+```bash
 npm run dev
 ```
 
-GitHub Pages style build:
+Then open:
 
-```bash
-npm run build
+```text
+http://127.0.0.1:5173/FitPilot/
 ```
 
-Firebase Hosting build:
+## Completion Criteria For Next Pass
 
-```bash
-npm run build:firebase
-```
-
-Firebase Hosting deploy:
-
-```bash
-npm run deploy:firebase
-```
-
-If Firebase CLI is not authenticated:
-
-```bash
-npx --yes firebase-tools login
-```
-
-## Verification
-
-Required automated checks:
-
-```bash
-npm run build
-npm run build:firebase
-```
-
-Manual production checks:
-
-1. Open `https://fitpilot-7d44e.firebaseapp.com`.
-2. Confirm `Firebase Ready`.
-3. Sign in with Google.
-4. Confirm logged-in state.
-5. Save a workout.
-6. Confirm the record appears in the History tab.
-7. Confirm Firestore has `users/{uid}/workoutLogs/{logId}`.
-8. Delete the workout.
-9. Confirm it disappears from History and Firestore.
-10. Log out and confirm localStorage save/delete still works.
-
-## Firebase Console Requirements
-
-Authentication:
-
-- Google provider enabled.
-- Authorized domains include:
-  - `localhost`
-  - `fitpilot-7d44e.firebaseapp.com`
-  - `fitpilot-7d44e.web.app`
-
-Firestore:
-
-- Cloud Firestore database created.
-- Rules allow only authenticated users to read/write their own `users/{uid}` subtree.
-- Realtime Database is not used.
-
-Hosting:
-
-- Firebase Hosting site `fitpilot-7d44e` is connected.
-- Official app URL should resolve at `https://fitpilot-7d44e.firebaseapp.com`.
-- Backup Firebase Hosting URL should resolve at `https://fitpilot-7d44e.web.app`.
-- GitHub Pages remains a backup deployment address only.
-
-## Next Work
-
-Recommended next steps:
-
-1. Improve UI copy consistency and fix any remaining mojibake text in `src/App.jsx`.
-2. Add visible sync status that distinguishes `Saved locally`, `Synced to Firestore`, and `Sync failed`.
-3. Add a small automated test layer for storage helpers and recommendation logic.
-4. Consider adding a one-click manual "sync local records to Firestore" action for logged-in users.
-5. Keep Firebase Hosting as the main deployment path unless a custom domain is added.
+- Manual browser test covers Today, New Routine, Body Map, Exercise DB, and History.
+- Today's routine can be generated, checked, and saved.
+- History persists after refresh.
+- Duplicate-save behavior is acceptable for the MVP.
+- Mobile layout is checked around 390px width.
+- Deployment workflow remains unchanged and `npm run build` passes before push.
